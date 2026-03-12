@@ -671,6 +671,54 @@ def scan_essentia(path: str, force: bool) -> None:
     console.print()
 
 
+@cli.command("enrich-essentia")
+@click.argument("path", type=click.Path(exists=True, file_okay=False, resolve_path=True))
+@click.option("--dry-run", is_flag=True, default=True, help="Preview changes without writing (default)")
+@click.option("--apply", "do_apply", is_flag=True, default=False, help="Write tags to files")
+@click.option("--force", is_flag=True, default=False, help="Overwrite existing tags with Essentia values")
+@click.option("--backup-dir", type=click.Path(), default=None,
+              help="Backup directory (default: _backups/ under scanned folder)")
+def enrich_essentia(path: str, dry_run: bool, do_apply: bool, force: bool, backup_dir: str | None) -> None:
+    """Write Essentia-detected BPM/key back to file tags.
+
+    Default is --dry-run (preview only). Use --apply to write tags.
+    Only fills gaps unless --force is used.
+    """
+    from .core.enrich import apply_enrichment, plan_enrichment, print_enrichment_plan
+
+    console = Console()
+    scan_path = Path(path)
+
+    console.print("\n  [bold magenta]DJ CrateDigger[/bold magenta] — Enrich from Essentia\n")
+
+    audio_paths = find_audio_files(scan_path)
+    if not audio_paths:
+        console.print("  [yellow]No audio files found.[/yellow]\n")
+        return
+
+    actions = plan_enrichment(audio_paths, force=force)
+    print_enrichment_plan(actions)
+
+    if not actions:
+        return
+
+    if not do_apply:
+        console.print("  [yellow]Dry run — no tags written. Use --apply to write.[/yellow]\n")
+        return
+
+    # Determine backup directory
+    backup = Path(backup_dir) if backup_dir else scan_path / "_backups"
+    console.print(f"  Backing up files to [cyan]{backup}[/cyan]")
+
+    success, errors = apply_enrichment(actions, backup_dir=backup)
+    console.print(f"\n  [green]Enriched {success} files.[/green]")
+    if errors:
+        console.print(f"  [red]{len(errors)} errors:[/red]")
+        for err in errors:
+            console.print(f"    - {err}")
+    console.print()
+
+
 def main():
     cli()
 
