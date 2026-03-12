@@ -21,6 +21,12 @@ CREATE TABLE IF NOT EXISTS audio_analysis (
     analyzed_at TEXT,
     analyzer_version TEXT
 );
+
+CREATE TABLE IF NOT EXISTS dj_profile (
+    id INTEGER PRIMARY KEY DEFAULT 1,
+    profile_json TEXT,
+    updated_at TEXT
+);
 """
 
 

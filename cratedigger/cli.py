@@ -723,6 +723,43 @@ def enrich_essentia(path: str, dry_run: bool, do_apply: bool, force: bool, backu
     console.print()
 
 
+@cli.group()
+def profile():
+    """DJ profile commands."""
+    pass
+
+
+@profile.command("build")
+@click.argument("path", type=click.Path(exists=True, file_okay=False, resolve_path=True))
+def profile_build(path: str) -> None:
+    """Build your DJ profile from library analysis."""
+    from .digger.profile import build_profile, display_profile, save_profile
+
+    console = Console()
+    scan_path = Path(path)
+
+    console.print("\n  [bold magenta]DJ CrateDigger[/bold magenta] — Building Profile...\n")
+
+    prof = build_profile(scan_path)
+    save_profile(prof)
+    display_profile(prof)
+    console.print("  [green]Profile saved.[/green]\n")
+
+
+@profile.command("show")
+def profile_show() -> None:
+    """Display your DJ profile."""
+    from .digger.profile import display_profile, load_profile
+
+    console = Console()
+    prof = load_profile()
+    if not prof:
+        console.print("\n  [yellow]No profile found. Run 'cratedigger profile build <path>' first.[/yellow]\n")
+        return
+
+    display_profile(prof)
+
+
 def main():
     cli()
 
