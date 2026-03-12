@@ -760,6 +760,39 @@ def profile_show() -> None:
     display_profile(prof)
 
 
+@cli.group()
+def gig():
+    """Gig prep commands."""
+    pass
+
+
+@gig.command("preflight")
+@click.argument("playlist_name")
+@click.option("--rekordbox", required=True, type=click.Path(exists=True, resolve_path=True),
+              help="Path to Rekordbox XML export")
+def gig_preflight(playlist_name: str, rekordbox: str) -> None:
+    """Run pre-flight readiness check on a Rekordbox playlist."""
+    from .gig.preflight import display_preflight, run_preflight
+    from .gig.rekordbox_parser import parse_rekordbox_xml
+
+    console = Console()
+    xml_path = Path(rekordbox)
+
+    library = parse_rekordbox_xml(xml_path)
+
+    if playlist_name not in library.playlists:
+        console.print(f"\n  [red]Playlist '{playlist_name}' not found.[/red]")
+        console.print("  Available playlists:")
+        for name in sorted(library.playlists.keys()):
+            count = len(library.playlists[name].track_keys)
+            console.print(f"    - {name} ({count} tracks)")
+        console.print()
+        return
+
+    report = run_preflight(library, playlist_name)
+    display_preflight(report)
+
+
 def main():
     cli()
 
