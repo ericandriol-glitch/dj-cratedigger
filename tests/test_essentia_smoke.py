@@ -1,6 +1,5 @@
 """Smoke tests to verify Essentia installation and algorithm availability."""
 
-import pytest
 
 
 def test_essentia_imports():
@@ -54,7 +53,6 @@ def test_analyze_sine_wave():
         Danceability,
         Energy,
         KeyExtractor,
-        MonoLoader,
         RhythmExtractor2013,
     )
 

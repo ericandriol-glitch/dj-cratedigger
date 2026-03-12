@@ -1,12 +1,9 @@
 """Tests for the Essentia-based audio analyzer."""
 
-import struct
-import tempfile
 import wave
 from pathlib import Path
 
 import numpy as np
-import pytest
 
 from cratedigger.core.analyzer import (
     AudioFeatures,

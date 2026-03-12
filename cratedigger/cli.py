@@ -50,7 +50,9 @@ def cli():
 @click.argument("path", type=click.Path(exists=True, file_okay=False, resolve_path=True))
 @click.option("--output", "-o", default="library_report.md", help="Output report path")
 @click.option("--verbose", "-v", is_flag=True, help="Show details for every file")
-def scan(path: str, output: str, verbose: bool) -> None:
+@click.option("--analyze/--no-analyze", default=False, help="Run Essentia audio analysis (BPM, key, energy)")
+@click.option("--force-reanalyze", is_flag=True, default=False, help="Re-analyze files already in the database")
+def scan(path: str, output: str, verbose: bool, analyze: bool, force_reanalyze: bool) -> None:
     """Scan a DJ music library and generate a health report."""
     console = Console()
     scan_path = Path(path)
@@ -91,6 +93,17 @@ def scan(path: str, output: str, verbose: bool) -> None:
     report.health_score = _calculate_health_score(report)
 
     print_terminal_report(report, verbose=verbose)
+
+    # Run Essentia analysis if requested
+    if analyze:
+        from .core.batch_analyzer import batch_analyze
+
+        console.print("\n  [bold magenta]Essentia Audio Analysis[/bold magenta]\n")
+        audio_paths = [t.file_path for t in tracks]
+        batch_result = batch_analyze(audio_paths, force=force_reanalyze)
+
+        # Print analysis vs tag comparison
+        _print_analysis_comparison(console, tracks, batch_result)
 
     output_path = Path(output)
     save_markdown_report(report, output_path)
@@ -559,6 +572,103 @@ def fix_all(path: str, dry_run: bool, trash_dir: str | None) -> None:
     ctx.invoke(fix_tags, path=path, dry_run=dry_run, yes=False)
     ctx.invoke(fix_dupes, path=path, dry_run=dry_run, trash_dir=trash_dir, yes=False)
     ctx.invoke(fix_filenames, path=path, dry_run=dry_run, yes=False)
+
+
+def _print_analysis_comparison(
+    console: Console,
+    tracks: list,
+    batch_result: "BatchResult",  # noqa: F821
+) -> None:
+    """Print comparison between tag metadata and Essentia-detected values."""
+    from .utils.db import get_connection
+
+    conn = get_connection()
+    cursor = conn.execute("SELECT filepath, bpm, key_camelot FROM audio_analysis")
+    db_results = {row[0]: (row[1], row[2]) for row in cursor.fetchall()}
+    conn.close()
+
+    tag_bpm_count = sum(1 for t in tracks if t.metadata and t.metadata.bpm)
+    tag_key_count = sum(1 for t in tracks if t.metadata and t.metadata.key)
+    detected_bpm_count = sum(1 for bpm, _ in db_results.values() if bpm is not None)
+    detected_key_count = sum(1 for _, key in db_results.values() if key is not None)
+
+    # Find disagreements
+    bpm_disagreements = []
+    key_disagreements = []
+    for track in tracks:
+        fp = str(track.file_path)
+        if fp not in db_results:
+            continue
+        detected_bpm, detected_key = db_results[fp]
+
+        if track.metadata and track.metadata.bpm and detected_bpm:
+            try:
+                tag_bpm = float(track.metadata.bpm)
+                if abs(tag_bpm - detected_bpm) > 2.0:
+                    bpm_disagreements.append((track.file_path.name, tag_bpm, detected_bpm))
+            except (ValueError, TypeError):
+                pass
+
+        if track.metadata and track.metadata.key and detected_key:
+            tag_key = track.metadata.key.strip()
+            if tag_key != detected_key:
+                key_disagreements.append((track.file_path.name, tag_key, detected_key))
+
+    total = len(tracks)
+    console.print("\n  [bold]Analysis Summary[/bold]")
+    console.print(f"  BPM:  {tag_bpm_count} from tags, {detected_bpm_count} from Essentia (of {total} tracks)")
+    console.print(f"  Key:  {tag_key_count} from tags, {detected_key_count} from Essentia (of {total} tracks)")
+
+    gaps_filled_bpm = detected_bpm_count - tag_bpm_count
+    gaps_filled_key = detected_key_count - tag_key_count
+    if gaps_filled_bpm > 0 or gaps_filled_key > 0:
+        console.print(
+            f"  [green]Essentia fills {max(0, gaps_filled_bpm)} BPM gaps "
+            f"and {max(0, gaps_filled_key)} key gaps[/green]"
+        )
+
+    if bpm_disagreements:
+        console.print(f"\n  [yellow]BPM disagreements (>{2} BPM difference): {len(bpm_disagreements)}[/yellow]")
+        table = Table()
+        table.add_column("Track", style="cyan", max_width=45)
+        table.add_column("Tag BPM", justify="right", style="yellow")
+        table.add_column("Detected BPM", justify="right", style="green")
+        table.add_column("Diff", justify="right", style="red")
+        for name, tag, detected in bpm_disagreements[:10]:
+            table.add_row(name[:45], f"{tag:.1f}", f"{detected:.1f}", f"{abs(tag - detected):.1f}")
+        console.print(table)
+
+    if key_disagreements:
+        console.print(f"\n  [yellow]Key disagreements: {len(key_disagreements)}[/yellow]")
+        table = Table()
+        table.add_column("Track", style="cyan", max_width=45)
+        table.add_column("Tag Key", style="yellow")
+        table.add_column("Detected Key", style="green")
+        for name, tag, detected in key_disagreements[:10]:
+            table.add_row(name[:45], tag, detected)
+        console.print(table)
+
+
+@cli.command("scan-essentia")
+@click.argument("path", type=click.Path(exists=True, file_okay=False, resolve_path=True))
+@click.option("--force", is_flag=True, default=False, help="Re-analyze files already in the database")
+def scan_essentia(path: str, force: bool) -> None:
+    """Run Essentia audio analysis (BPM, key, energy, danceability) on a library."""
+    from .core.batch_analyzer import batch_analyze
+
+    console = Console()
+    scan_path = Path(path)
+
+    console.print("\n  [bold magenta]DJ CrateDigger[/bold magenta] — Essentia Analysis\n")
+
+    audio_paths = find_audio_files(scan_path)
+    if not audio_paths:
+        console.print("  [yellow]No audio files found.[/yellow]\n")
+        return
+
+    console.print(f"  Found {len(audio_paths)} audio files in [cyan]{scan_path}[/cyan]\n")
+    batch_analyze(audio_paths, force=force)
+    console.print()
 
 
 def main():

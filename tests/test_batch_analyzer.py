@@ -1,11 +1,9 @@
 """Tests for batch analyzer and SQLite storage."""
 
-import sqlite3
 import wave
 from pathlib import Path
 
 import numpy as np
-import pytest
 
 from cratedigger.core.analyzer import AudioFeatures
 from cratedigger.core.batch_analyzer import BatchResult, batch_analyze
