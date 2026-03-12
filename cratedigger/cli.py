@@ -793,6 +793,107 @@ def gig_preflight(playlist_name: str, rekordbox: str) -> None:
     display_preflight(report)
 
 
+@gig.command("export")
+@click.argument("playlist_name")
+@click.option("--rekordbox", required=True, type=click.Path(exists=True, resolve_path=True),
+              help="Path to Rekordbox XML export (source)")
+@click.option("--output", "-o", required=True, type=click.Path(resolve_path=True),
+              help="Output XML file path")
+@click.option("--include-cues", is_flag=True, default=False,
+              help="Include generated cue points from database")
+def gig_export(playlist_name: str, rekordbox: str, output: str, include_cues: bool) -> None:
+    """Export a playlist as Rekordbox-compatible XML."""
+    from .gig.rekordbox_parser import parse_rekordbox_xml
+    from .gig.rekordbox_writer import ExportCuePoint, ExportTrack, write_rekordbox_xml
+
+    console = Console()
+    xml_path = Path(rekordbox)
+
+    library = parse_rekordbox_xml(xml_path)
+
+    if playlist_name not in library.playlists:
+        console.print(f"\n  [red]Playlist '{playlist_name}' not found.[/red]")
+        console.print("  Available playlists:")
+        for name in sorted(library.playlists.keys()):
+            console.print(f"    - {name}")
+        console.print()
+        return
+
+    tracks = library.get_playlist_tracks(playlist_name)
+    export_tracks = []
+    for t in tracks:
+        cues = []
+        if include_cues:
+            for cue in t.hot_cues:
+                cues.append(ExportCuePoint(
+                    name=cue.name, position_seconds=cue.start, num=cue.num,
+                    red=cue.red, green=cue.green, blue=cue.blue,
+                ))
+        export_tracks.append(ExportTrack(
+            location=t.location, name=t.name, artist=t.artist,
+            bpm=t.bpm, key=t.key, cue_points=cues,
+        ))
+
+    out_path = Path(output)
+    write_rekordbox_xml(export_tracks, out_path, playlist_name=playlist_name)
+    console.print(f"\n  [green]Exported {len(export_tracks)} tracks to {out_path}[/green]\n")
+
+
+@gig.command("practice")
+@click.argument("playlist_name")
+@click.option("--rekordbox", required=True, type=click.Path(exists=True, resolve_path=True),
+              help="Path to Rekordbox XML export")
+def gig_practice(playlist_name: str, rekordbox: str) -> None:
+    """Score transition difficulty and prioritise practice."""
+    from .gig.practice import Transition, display_practice, prioritise_practice
+    from .gig.rekordbox_parser import parse_rekordbox_xml
+    from .utils.db import get_connection
+
+    console = Console()
+    xml_path = Path(rekordbox)
+    library = parse_rekordbox_xml(xml_path)
+
+    if playlist_name not in library.playlists:
+        console.print(f"\n  [red]Playlist '{playlist_name}' not found.[/red]")
+        return
+
+    tracks = library.get_playlist_tracks(playlist_name)
+    if len(tracks) < 2:
+        console.print("\n  [yellow]Need at least 2 tracks for practice scoring.[/yellow]\n")
+        return
+
+    # Get energy data from Essentia DB
+    conn = get_connection()
+    energy_map: dict[str, float] = {}
+    for row in conn.execute("SELECT filepath, energy FROM audio_analysis WHERE energy IS NOT NULL"):
+        energy_map[row[0]] = row[1]
+    conn.close()
+
+    # Build transitions
+    transitions = []
+    for i in range(len(tracks) - 1):
+        a, b = tracks[i], tracks[i + 1]
+        # Use Essentia energy if available, else estimate from position
+        energy_a = energy_map.get(a.location, 0.7)
+        energy_b = energy_map.get(b.location, 0.7)
+
+        if a.bpm and b.bpm and a.key and b.key:
+            from .core.analyzer import musical_key_to_camelot
+            key_a = musical_key_to_camelot(a.key) or a.key
+            key_b = musical_key_to_camelot(b.key) or b.key
+            transitions.append(Transition(
+                track_a_name=f"{a.artist} - {a.name}",
+                track_b_name=f"{b.artist} - {b.name}",
+                bpm_a=a.bpm, bpm_b=b.bpm,
+                key_a=key_a, key_b=key_b,
+                energy_a=energy_a, energy_b=energy_b,
+            ))
+
+    console.print(f"\n  [bold magenta]Practice Priority:[/bold magenta] {playlist_name}")
+    scored = prioritise_practice(transitions)
+    display_practice(scored)
+
+
 def main():
     cli()
 
