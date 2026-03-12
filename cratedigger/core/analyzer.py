@@ -44,6 +44,34 @@ KEY_NORMALIZE: dict[str, str] = {
 
 ANALYZER_VERSION = "essentia-2.1b6"
 
+# Reverse map for converting tag notation (e.g. "Fm", "Bbm", "D") to Camelot
+_TAG_TO_CAMELOT: dict[str, str] = {}
+for (key, scale), camelot in CAMELOT_MAP.items():
+    if scale == "major":
+        _TAG_TO_CAMELOT[key] = camelot
+    else:
+        _TAG_TO_CAMELOT[key + "m"] = camelot
+# Add normalized variants (Db, Gb, etc.)
+for alt, canonical in KEY_NORMALIZE.items():
+    _TAG_TO_CAMELOT[alt] = _TAG_TO_CAMELOT.get(canonical, "")
+    _TAG_TO_CAMELOT[alt + "m"] = _TAG_TO_CAMELOT.get(canonical + "m", "")
+
+
+def musical_key_to_camelot(tag_key: str) -> str | None:
+    """Convert a musical key tag (e.g. 'Fm', 'Bb', 'F#m') to Camelot notation.
+
+    Returns None if the key can't be parsed. If already Camelot, returns as-is.
+    """
+    tag_key = tag_key.strip()
+
+    # Already Camelot? (e.g. "8A", "11B")
+    if len(tag_key) >= 2 and tag_key[-1] in ("A", "B") and tag_key[:-1].isdigit():
+        num = int(tag_key[:-1])
+        if 1 <= num <= 12:
+            return tag_key
+
+    return _TAG_TO_CAMELOT.get(tag_key)
+
 
 @dataclass
 class AudioFeatures:
@@ -85,8 +113,13 @@ def _detect_bpm(audio: np.ndarray) -> tuple[float | None, float]:
     if bpm < 50 or bpm > 250:
         return None, 0.0
 
-    # Confidence: use mean beat confidence, clamped to 0-1
-    confidence = float(np.clip(np.mean(beats_confidence), 0.0, 1.0)) if len(beats_confidence) > 0 else 0.0
+    # Confidence: beats_confidence may be a float or an array depending on input
+    if isinstance(beats_confidence, np.ndarray) and beats_confidence.size > 0:
+        confidence = float(np.clip(np.mean(beats_confidence), 0.0, 1.0))
+    elif isinstance(beats_confidence, (int, float)):
+        confidence = float(np.clip(beats_confidence, 0.0, 1.0))
+    else:
+        confidence = 0.0
 
     return round(float(bpm), 1), confidence
 

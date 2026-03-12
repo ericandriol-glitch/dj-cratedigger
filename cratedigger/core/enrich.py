@@ -82,8 +82,14 @@ def plan_enrichment(
 
         # Key: fill gap or overwrite if forced
         if analysis["key"] is not None:
+            from cratedigger.core.analyzer import musical_key_to_camelot
             has_tag = meta.key is not None and meta.key.strip() != ""
-            if not has_tag or force:
+            # Check if tag key is same as detected (just different notation)
+            tag_matches = False
+            if has_tag and meta.key:
+                tag_camelot = musical_key_to_camelot(meta.key.strip())
+                tag_matches = tag_camelot == analysis["key"]
+            if (not has_tag or force) and not tag_matches:
                 actions.append(EnrichAction(
                     file_path=filepath,
                     field="key",

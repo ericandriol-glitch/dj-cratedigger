@@ -610,8 +610,12 @@ def _print_analysis_comparison(
                 pass
 
         if track.metadata and track.metadata.key and detected_key:
+            from .core.analyzer import musical_key_to_camelot
             tag_key = track.metadata.key.strip()
-            if tag_key != detected_key:
+            tag_camelot = musical_key_to_camelot(tag_key)
+            if tag_camelot and tag_camelot != detected_key:
+                key_disagreements.append((track.file_path.name, f"{tag_key} ({tag_camelot})", detected_key))
+            elif not tag_camelot and tag_key != detected_key:
                 key_disagreements.append((track.file_path.name, tag_key, detected_key))
 
     total = len(tracks)
