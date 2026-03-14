@@ -44,8 +44,11 @@ export function PlayerProvider({ children }) {
   const play = useCallback((t) => {
     const a = getAudio();
     setError(null);
-    const src = `${API}/api/audio/stream?filepath=${encodeURIComponent(t.filepath)}`;
-    if (track?.filepath !== t.filepath) {
+    // Support direct URLs (e.g. Deezer preview clips) or stream from API
+    const src = t.directUrl || `${API}/api/audio/stream?filepath=${encodeURIComponent(t.filepath)}`;
+    const trackId = t.directUrl || t.filepath;
+    const currentId = track?.directUrl || track?.filepath;
+    if (currentId !== trackId) {
       a.src = src;
       setTrack(t);
       setCurrentTime(0);

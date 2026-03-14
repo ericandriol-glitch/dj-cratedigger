@@ -182,6 +182,110 @@ def stop_track() -> None:
         pygame.mixer.music.stop()
 
 
+def play_preview(url: str, volume: float = 1.0) -> Optional[NowPlaying]:
+    """Download and play a preview clip from a URL (e.g. Spotify 30s preview).
+
+    Downloads to a temp file, plays via pygame, cleans up when done.
+
+    Args:
+        url: HTTP(S) URL to an audio file (MP3).
+        volume: Initial volume (0.0 to 1.0).
+
+    Returns:
+        NowPlaying object, or None if download/playback fails.
+    """
+    import os
+    import tempfile
+    import urllib.request
+
+    if not url:
+        return None
+
+    try:
+        import pygame
+    except ImportError:
+        return None
+
+    # Download preview to temp file
+    try:
+        req = urllib.request.Request(url, headers={
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            ),
+        })
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            audio_data = resp.read()
+    except Exception:
+        return None
+
+    # Write to temp file
+    tmp = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
+    try:
+        tmp.write(audio_data)
+        tmp.close()
+        tmp_path = Path(tmp.name)
+
+        # Initialize pygame mixer
+        os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
+        if not pygame.mixer.get_init():
+            pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=2048)
+
+        vol = max(0.0, min(1.0, volume))
+
+        state = NowPlaying(
+            filepath=tmp_path,
+            metadata=TrackMetadata(),
+            duration=30.0,  # Spotify previews are ~30s
+            volume=vol,
+        )
+
+        pygame.mixer.music.load(str(tmp_path))
+        pygame.mixer.music.set_volume(vol)
+        pygame.mixer.music.play()
+
+        def _position_tracker():
+            start_time = time.time()
+            paused_at = 0.0
+            total_paused = 0.0
+
+            while not state.stopped:
+                if state.paused:
+                    if paused_at == 0.0:
+                        paused_at = time.time()
+                else:
+                    if paused_at > 0.0:
+                        total_paused += time.time() - paused_at
+                        paused_at = 0.0
+                    state.position = time.time() - start_time - total_paused
+
+                if not pygame.mixer.music.get_busy() and not state.paused:
+                    state.stopped = True
+                    break
+
+                pygame.mixer.music.set_volume(state.volume)
+                time.sleep(0.1)
+
+            # Clean up temp file
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+
+        thread = threading.Thread(target=_position_tracker, daemon=True)
+        thread.start()
+
+        return state
+
+    except Exception:
+        # Clean up on error
+        try:
+            os.unlink(tmp.name)
+        except OSError:
+            pass
+        return None
+
+
 def format_time(seconds: float) -> str:
     """Format seconds as MM:SS."""
     mins = int(seconds) // 60

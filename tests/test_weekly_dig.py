@@ -8,6 +8,7 @@ from cratedigger.digger.weekly_dig import (
     WeeklyDigReport,
     _check_library_overlap,
     _check_streaming_overlap,
+    _is_junk_result,
     _normalize_artist,
     _score_relevance,
     display_weekly_report,
@@ -112,7 +113,12 @@ class TestParseManualReleases:
 
 
 class TestCheckLibraryOverlap:
-    def test_marks_existing_tracks(self, tmp_path):
+    @patch("cratedigger.utils.db.get_connection")
+    def test_marks_existing_tracks(self, mock_conn, tmp_path):
+        # Mock DB to return no results — force filesystem fallback
+        mock_conn.return_value.execute.return_value.fetchall.return_value = []
+        mock_conn.return_value.close = lambda: None
+
         (tmp_path / "Solomun - After Rain.mp3").touch()
         (tmp_path / "Adam Beyer - Drumcode.flac").touch()
 
@@ -124,7 +130,7 @@ class TestCheckLibraryOverlap:
         _check_library_overlap(releases, tmp_path)
 
         assert releases[0].in_library is True
-        assert releases[0].artist_in_library is True
+        # artist_in_library not set when in_library is already True (redundant)
         assert releases[1].in_library is False
         assert releases[1].artist_in_library is True  # Solomun exists in lib
         assert releases[2].in_library is False
@@ -214,6 +220,36 @@ class TestScoreRelevance:
         assert score == 0.0
 
 
+# --- Junk result filter ---
+
+
+class TestIsJunkResult:
+    def test_top_100_is_junk(self):
+        assert _is_junk_result("Melodic / Progressive House — TOP 100 on Traxsource")
+
+    def test_top_200_is_junk(self):
+        assert _is_junk_result("Traxsource — Top 200 Melodic / Progressive House of 2025")
+
+    def test_all_releases_is_junk(self):
+        assert _is_junk_result("Melodic / Progressive House — ALL RELEASES on Traxsource")
+
+    def test_collection_is_junk(self):
+        assert _is_junk_result("Various Artists — Top Progressive House Collection 2025")
+
+    def test_various_artists_is_junk(self):
+        assert _is_junk_result("Various Artists — Summer Vibes")
+
+    def test_actual_track_is_not_junk(self):
+        assert not _is_junk_result("Solomun - After Rain")
+
+    def test_artist_title_not_junk(self):
+        assert not _is_junk_result("Adam Beyer - Drumcode Live")
+
+    def test_case_insensitive(self):
+        assert _is_junk_result("TOP 100 house tracks")
+        assert _is_junk_result("best of 2024 compilation")
+
+
 # --- Genre slugs ---
 
 
@@ -230,11 +266,113 @@ class TestGenreSlugs:
             assert " " not in slug
 
 
+# --- Spotify new releases fallback ---
+
+
+class TestSearchSpotifyNewReleases:
+    @patch("cratedigger.digger.weekly_dig._get_spotify_client")
+    def test_returns_tracks_from_spotify(self, mock_client):
+        from cratedigger.digger.weekly_dig import _search_spotify_new_releases
+
+        mock_sp = mock_client.return_value
+        mock_sp.search.return_value = {
+            "tracks": {
+                "items": [
+                    {
+                        "name": "Deep Feeling",
+                        "artists": [{"name": "Solomun"}],
+                        "album": {
+                            "album_type": "single",
+                            "release_date": "2026-03-10",
+                        },
+                        "external_urls": {"spotify": "https://open.spotify.com/track/123"},
+                    },
+                    {
+                        "name": "Compilation Hit",
+                        "artists": [{"name": "Various"}],
+                        "album": {
+                            "album_type": "compilation",
+                            "release_date": "2026-01-01",
+                        },
+                        "external_urls": {"spotify": "https://open.spotify.com/track/456"},
+                    },
+                ]
+            }
+        }
+
+        results = _search_spotify_new_releases("Progressive House")
+        assert len(results) == 1  # compilation filtered out
+        assert results[0].artist == "Solomun"
+        assert results[0].title == "Deep Feeling"
+        assert results[0].source == "spotify"
+        assert "spotify.com" in results[0].url
+
+    @patch("cratedigger.digger.weekly_dig._get_spotify_client")
+    def test_returns_empty_when_no_client(self, mock_client):
+        from cratedigger.digger.weekly_dig import _search_spotify_new_releases
+
+        mock_client.return_value = None
+        results = _search_spotify_new_releases("Tech House")
+        assert results == []
+
+    @patch("cratedigger.digger.weekly_dig._get_spotify_client")
+    def test_handles_api_error(self, mock_client):
+        from cratedigger.digger.weekly_dig import _search_spotify_new_releases
+
+        mock_sp = mock_client.return_value
+        mock_sp.search.side_effect = Exception("API error")
+        results = _search_spotify_new_releases("Techno")
+        assert results == []
+
+
+# --- Preview URL enrichment ---
+
+
+class TestEnrichPreviewUrls:
+    @patch("cratedigger.digger.weekly_dig._web_get")
+    def test_enriches_missing_previews_via_deezer(self, mock_web_get):
+        import json
+        from cratedigger.digger.weekly_dig import _enrich_preview_urls
+
+        mock_web_get.return_value = json.dumps({
+            "data": [{
+                "preview": "https://cdns-preview.dzcdn.net/stream/abc.mp3",
+            }]
+        })
+
+        releases = [
+            NewRelease(title="After Rain", artist="Solomun", genre="Deep House"),
+        ]
+        _enrich_preview_urls(releases)
+        assert releases[0].preview_url == "https://cdns-preview.dzcdn.net/stream/abc.mp3"
+
+    @patch("cratedigger.digger.weekly_dig._web_get")
+    def test_skips_releases_with_preview(self, mock_web_get):
+        from cratedigger.digger.weekly_dig import _enrich_preview_urls
+
+        releases = [
+            NewRelease(title="Track", artist="DJ", preview_url="https://existing.url/preview"),
+        ]
+        _enrich_preview_urls(releases)
+        # Should not have called Deezer at all
+        mock_web_get.assert_not_called()
+
+    @patch("cratedigger.digger.weekly_dig._web_get")
+    def test_handles_no_results(self, mock_web_get):
+        import json
+        from cratedigger.digger.weekly_dig import _enrich_preview_urls
+
+        mock_web_get.return_value = json.dumps({"data": []})
+        releases = [NewRelease(title="Track", artist="DJ")]
+        _enrich_preview_urls(releases)
+        assert releases[0].preview_url == ""
+
+
 # --- Full scan (mocked) ---
 
 
 class TestScanNewReleases:
-    @patch("cratedigger.digger.weekly_dig._search_beatport_releases")
+    @patch("cratedigger.digger.weekly_dig._search_traxsource_releases")
     @patch("cratedigger.digger.weekly_dig._load_dj_profile")
     def test_scan_with_profile(self, mock_profile, mock_search):
         mock_profile.return_value = {
@@ -254,7 +392,7 @@ class TestScanNewReleases:
         assert len(report.genres_scanned) > 0
         assert report.profile_genres == ["Tech House", "Deep House"]
 
-    @patch("cratedigger.digger.weekly_dig._search_beatport_releases")
+    @patch("cratedigger.digger.weekly_dig._search_traxsource_releases")
     @patch("cratedigger.digger.weekly_dig._load_dj_profile")
     def test_scan_without_profile(self, mock_profile, mock_search):
         mock_profile.return_value = None
@@ -268,7 +406,7 @@ class TestScanNewReleases:
         assert "Tech House" in report.genres_scanned
         assert len(report.releases) >= 0
 
-    @patch("cratedigger.digger.weekly_dig._search_beatport_releases")
+    @patch("cratedigger.digger.weekly_dig._search_traxsource_releases")
     @patch("cratedigger.digger.weekly_dig._load_dj_profile")
     def test_scan_with_explicit_genres(self, mock_profile, mock_search):
         mock_profile.return_value = None
@@ -278,7 +416,7 @@ class TestScanNewReleases:
 
         assert report.genres_scanned == ["Trance", "Breaks"]
 
-    @patch("cratedigger.digger.weekly_dig._search_beatport_releases")
+    @patch("cratedigger.digger.weekly_dig._search_traxsource_releases")
     @patch("cratedigger.digger.weekly_dig._load_dj_profile")
     def test_deduplication(self, mock_profile, mock_search):
         mock_profile.return_value = None

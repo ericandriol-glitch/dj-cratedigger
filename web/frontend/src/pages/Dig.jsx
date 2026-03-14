@@ -6,8 +6,9 @@ import {
   Compass, Search, Disc3, Users, Globe, Music,
   MapPin, ExternalLink, ChevronDown, ChevronUp,
   CircleCheck, AlertTriangle, CircleX, Ticket, X,
-  User, Flame, TrendingUp,
+  User, Flame, TrendingUp, Play, Pause,
 } from "lucide-react";
+import { usePlayer } from "../hooks/usePlayer";
 
 /* ─── Label Research View ─── */
 function LabelResearch() {
@@ -750,6 +751,7 @@ function WeeklyDigView() {
   const [report, setReport] = useState(null);
   const [error, setError] = useState(null);
   const [genres, setGenres] = useState("");
+  const player = usePlayer();
 
   const scan = async () => {
     setLoading(true); setError(null); setReport(null);
@@ -789,7 +791,7 @@ function WeeklyDigView() {
 
       {!loading && !report && !error && (
         <div style={{ textAlign: "center", padding: "8px 0 16px", fontSize: 11, fontFamily: F.m, color: P.textMut }}>
-          Leave genres blank to use your DJ profile. Scans Beatport for new releases.
+          Leave genres blank to use your DJ profile. Scans Traxsource + Spotify for new releases with 30s preview clips.
         </div>
       )}
 
@@ -826,21 +828,32 @@ function WeeklyDigView() {
             <>
               <Sec label={`Hot Picks (${hot.length})`} icon={Flame} />
               <div style={{ background: P.bgCard, border: `1px solid ${P.border}`, borderRadius: 14, padding: "10px 14px", marginBottom: 16 }}>
-                {hot.slice(0, 15).map((r, i) => (
-                  <div key={i} style={{ display: "flex", gap: 10, padding: "10px 0", borderBottom: i < hot.length - 1 ? `1px solid ${P.borderSub}` : "none", alignItems: "center" }}>
-                    <div style={{ width: 32, textAlign: "center", fontSize: 12, fontWeight: 700, fontFamily: F.d, color: P.terracotta }}>{r.relevance_score.toFixed(1)}</div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontFamily: F.b, fontWeight: 600, color: P.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.artist || "?"} — {r.title}</div>
-                      <div style={{ fontSize: 11, fontFamily: F.m, color: P.textSec }}>
-                        {r.genre}{r.label ? ` · ${r.label}` : ""}
+                {hot.slice(0, 15).map((r, i) => {
+                  const isPlaying = player.playing && player.track?.directUrl === r.preview_url;
+                  return (
+                    <div key={i} style={{ display: "flex", gap: 10, padding: "10px 0", borderBottom: i < hot.length - 1 ? `1px solid ${P.borderSub}` : "none", alignItems: "center" }}>
+                      {r.preview_url ? (
+                        <button onClick={() => isPlaying ? player.pause() : player.play({ directUrl: r.preview_url, title: r.title, artist: r.artist, genre: r.genre })}
+                          style={{ width: 32, height: 32, borderRadius: "50%", border: "none", background: isPlaying ? P.lime : P.bgSurface, color: isPlaying ? P.bg : P.lime, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.2s ease" }}>
+                          {isPlaying ? <Pause size={14} /> : <Play size={14} style={{ marginLeft: 2 }} />}
+                        </button>
+                      ) : (
+                        <div style={{ width: 32, textAlign: "center", fontSize: 12, fontWeight: 700, fontFamily: F.d, color: P.terracotta }}>{r.relevance_score.toFixed(1)}</div>
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontFamily: F.b, fontWeight: 600, color: P.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.artist || "?"} — {r.title}</div>
+                        <div style={{ fontSize: 11, fontFamily: F.m, color: P.textSec }}>
+                          {r.genre}{r.label ? ` · ${r.label}` : ""}{r.release_date ? ` · ${r.release_date}` : ""}
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 3, flexShrink: 0, alignItems: "center" }}>
+                        {r.artist_in_library && <span style={{ fontSize: 8, fontFamily: F.m, color: P.healthy, padding: "1px 5px", background: `${P.healthy}10`, borderRadius: 3 }}>LIB</span>}
+                        {r.artist_in_streaming && <span style={{ fontSize: 8, fontFamily: F.m, color: P.azure, padding: "1px 5px", background: `${P.azure}10`, borderRadius: 3 }}>STREAM</span>}
+                        {r.url && <a href={r.url} target="_blank" rel="noopener noreferrer" style={{ color: P.textMut, marginLeft: 4 }}><ExternalLink size={12} /></a>}
                       </div>
                     </div>
-                    <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
-                      {r.artist_in_library && <span style={{ fontSize: 8, fontFamily: F.m, color: P.healthy, padding: "1px 5px", background: `${P.healthy}10`, borderRadius: 3 }}>LIB</span>}
-                      {r.artist_in_streaming && <span style={{ fontSize: 8, fontFamily: F.m, color: P.azure, padding: "1px 5px", background: `${P.azure}10`, borderRadius: 3 }}>STREAM</span>}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </>
           )}
@@ -850,14 +863,26 @@ function WeeklyDigView() {
             <>
               <Sec label={`Other Releases (${others.length})`} icon={Music} />
               <div style={{ background: P.bgCard, border: `1px solid ${P.border}`, borderRadius: 14, padding: "10px 14px" }}>
-                {others.slice(0, 15).map((r, i) => (
-                  <div key={i} style={{ display: "flex", gap: 10, padding: "8px 0", borderBottom: i < Math.min(others.length, 15) - 1 ? `1px solid ${P.borderSub}` : "none" }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12, fontFamily: F.b, color: P.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.artist || "?"} — {r.title}</div>
-                      <div style={{ fontSize: 10, fontFamily: F.m, color: P.textMut }}>{r.genre}</div>
+                {others.slice(0, 15).map((r, i) => {
+                  const isPlaying = player.playing && player.track?.directUrl === r.preview_url;
+                  return (
+                    <div key={i} style={{ display: "flex", gap: 10, padding: "8px 0", borderBottom: i < Math.min(others.length, 15) - 1 ? `1px solid ${P.borderSub}` : "none", alignItems: "center" }}>
+                      {r.preview_url ? (
+                        <button onClick={() => isPlaying ? player.pause() : player.play({ directUrl: r.preview_url, title: r.title, artist: r.artist, genre: r.genre })}
+                          style={{ width: 28, height: 28, borderRadius: "50%", border: "none", background: isPlaying ? P.lime : P.bgSurface, color: isPlaying ? P.bg : P.textSec, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.2s ease" }}>
+                          {isPlaying ? <Pause size={12} /> : <Play size={12} style={{ marginLeft: 1 }} />}
+                        </button>
+                      ) : (
+                        <div style={{ width: 28 }} />
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontFamily: F.b, color: P.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.artist || "?"} — {r.title}</div>
+                        <div style={{ fontSize: 10, fontFamily: F.m, color: P.textMut }}>{r.genre}{r.release_date ? ` · ${r.release_date}` : ""}</div>
+                      </div>
+                      {r.url && <a href={r.url} target="_blank" rel="noopener noreferrer" style={{ color: P.textMut, flexShrink: 0 }}><ExternalLink size={12} /></a>}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {others.length > 15 && <div style={{ textAlign: "center", padding: "8px 0", fontSize: 10, fontFamily: F.m, color: P.textMut }}>+ {others.length - 15} more</div>}
               </div>
             </>

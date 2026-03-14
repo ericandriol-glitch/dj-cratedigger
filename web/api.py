@@ -548,10 +548,13 @@ def dig_weekly(genres: str = Query(None)):
                     "label": r.label,
                     "genre": r.genre,
                     "url": r.url,
+                    "preview_url": r.preview_url,
+                    "release_date": r.release_date,
                     "relevance_score": r.relevance_score,
                     "artist_in_library": r.artist_in_library,
                     "artist_in_streaming": r.artist_in_streaming,
                     "in_library": r.in_library,
+                    "source": r.source,
                 }
                 for r in report.releases[:50]
             ],

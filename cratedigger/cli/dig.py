@@ -64,14 +64,21 @@ def dig_label(artist: str, library: str | None, no_web: bool) -> None:
     default=False,
     help="Paste releases manually (one per line: Artist - Title).",
 )
-def dig_weekly(genre: tuple, library: str | None, paste: bool) -> None:
+@click.option(
+    "--preview", "-p",
+    is_flag=True,
+    default=False,
+    help="Enable interactive preview mode — listen to 30s clips.",
+)
+def dig_weekly(genre: tuple, library: str | None, paste: bool, preview: bool) -> None:
     """Scan new releases against your DJ profile.
 
-    Uses Beatport web search + your DJ profile to find relevant new music.
+    Uses Traxsource + Spotify to find relevant new music.
 
     Examples:\n
       cratedigger dig weekly\n
       cratedigger dig weekly -g "Tech House" -g "Deep House"\n
+      cratedigger dig weekly --preview\n
       cratedigger dig weekly --paste
     """
     from ..digger.weekly_dig import (
@@ -108,6 +115,10 @@ def dig_weekly(genre: tuple, library: str | None, paste: bool) -> None:
         genres = list(genre) if genre else None
         report = scan_new_releases(genres=genres, library_path=library_path)
         display_weekly_report(report)
+
+        # Interactive preview mode
+        if preview:
+            _interactive_preview(report, console)
 
 
 @dig.command("artist")
@@ -242,3 +253,78 @@ def dig_festival(name: str | None, lineup: str | None, library: str | None, no_g
         lookup_genres=not no_genres,
     )
     display_festival_report(report)
+
+
+def _interactive_preview(report, console: Console) -> None:
+    """Interactive preview loop — type a number to hear a 30s clip."""
+    numbered = getattr(report, "_numbered_releases", [])
+    if not numbered:
+        return
+
+    previewable = [r for r in numbered if r.preview_url]
+    if not previewable:
+        console.print("  [yellow]No preview clips available for these tracks.[/yellow]\n")
+        return
+
+    try:
+        from ..player import format_time, play_preview, stop_track
+    except ImportError:
+        console.print("  [yellow]pygame not installed. Run: pip install pygame[/yellow]\n")
+        return
+
+    console.print("  [bold green]Preview Mode[/bold green] — type a track number to listen (q to quit)\n")
+
+    import sys
+    current_state = None
+
+    while True:
+        try:
+            raw = input("  [preview] > ").strip()
+        except (EOFError, KeyboardInterrupt):
+            break
+
+        if raw.lower() in ("q", "quit", "exit", ""):
+            break
+
+        try:
+            num = int(raw)
+        except ValueError:
+            console.print("  [dim]Type a number or q to quit[/dim]")
+            continue
+
+        if num < 1 or num > len(numbered):
+            console.print(f"  [dim]Pick 1-{len(numbered)}[/dim]")
+            continue
+
+        release = numbered[num - 1]
+        if not release.preview_url:
+            console.print(f"  [yellow]No preview available for {release.artist} — {release.title}[/yellow]")
+            continue
+
+        # Stop any current preview
+        if current_state and not current_state.stopped:
+            stop_track()
+
+        console.print(f"  [cyan]{release.artist}[/cyan] — [white]{release.title}[/white]  [dim](30s preview)[/dim]")
+
+        current_state = play_preview(release.preview_url)
+        if current_state is None:
+            console.print("  [red]Could not play preview.[/red]")
+            continue
+
+        # Wait for playback with simple controls
+        console.print("  [dim]Playing... (Enter = stop, n = next)[/dim]")
+        try:
+            cmd = input("").strip().lower()
+            if cmd == "q":
+                stop_track()
+                break
+            stop_track()
+        except (EOFError, KeyboardInterrupt):
+            stop_track()
+            break
+
+    # Clean up
+    if current_state and not current_state.stopped:
+        stop_track()
+    console.print("  [dim]Preview ended.[/dim]\n")

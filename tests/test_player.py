@@ -161,3 +161,25 @@ class TestPlayTrack:
         f.touch()
         result = play_track(f)
         assert result is None
+
+
+class TestPlayPreview:
+    def test_returns_none_for_empty_url(self):
+        from cratedigger.player import play_preview
+
+        result = play_preview("")
+        assert result is None
+
+    def test_returns_none_for_none_url(self):
+        from cratedigger.player import play_preview
+
+        result = play_preview(None)
+        assert result is None
+
+    def test_returns_none_when_pygame_missing(self):
+        """Without pygame installed, play_preview returns None gracefully."""
+        from cratedigger.player import play_preview
+
+        # pygame isn't installed in test env, so this should return None
+        result = play_preview("https://example.com/preview.mp3")
+        assert result is None
