@@ -215,21 +215,53 @@ def _get_profile_genres() -> set[str]:
 
 
 def _lookup_artist_genres(artist_name: str) -> list[str]:
-    """Look up genres for an artist via MusicBrainz tags."""
+    """Look up genres for an artist via MusicBrainz + Spotify fallback."""
+    genres = []
+
+    # Try MusicBrainz first
     try:
         import musicbrainzngs as mb
         mb.set_useragent("DJ CrateDigger", "0.1.0", "eric.andriol@gmail.com")
         time.sleep(RATE_LIMIT)
-        result = mb.search_artists(artist_name, limit=1)
+        result = mb.search_artists(artist_name, limit=5)
         artists = result.get("artist-list", [])
-        if artists:
-            tags = artists[0].get("tag-list", [])
-            # Return top tags sorted by count
+
+        # Prefer electronic artists (avoid classical/jazz namesakes)
+        best = None
+        for a in artists:
+            disambig = (a.get("disambiguation") or "").lower()
+            tags = [t.get("name", "").lower() for t in a.get("tag-list", [])]
+            is_electronic = any(
+                sig in disambig or sig in " ".join(tags)
+                for sig in ("dj", "producer", "electronic", "house", "techno")
+            )
+            if a.get("name", "").lower().strip() == artist_name.lower().strip():
+                if is_electronic or best is None:
+                    best = a
+                    if is_electronic:
+                        break
+
+        if best is None and artists:
+            best = artists[0]
+
+        if best:
+            tags = best.get("tag-list", [])
             sorted_tags = sorted(tags, key=lambda t: int(t.get("count", 0)), reverse=True)
-            return [t["name"] for t in sorted_tags[:5]]
+            genres = [t["name"] for t in sorted_tags[:5]]
     except Exception:
         pass
-    return []
+
+    # Spotify fallback if MusicBrainz returned nothing useful
+    if not genres or all(g.lower() in ("electronic", "dance", "") for g in genres):
+        try:
+            from cratedigger.digger.spotify_genres import lookup_spotify_genres
+            sp_genres = lookup_spotify_genres(artist_name)
+            if sp_genres:
+                genres = sp_genres[:5]
+        except Exception:
+            pass
+
+    return genres
 
 
 def scan_festival(

@@ -1,7 +1,6 @@
 """Weekly dig module — scan new releases against your DJ profile."""
 
 import html.parser
-import json
 import logging
 import re
 import time
@@ -28,7 +27,7 @@ _USER_AGENT = (
     "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 )
 
-# Beatport genre slugs for DJ-relevant genres
+# Genre slugs for Traxsource (server-rendered, has actual track data)
 GENRE_SLUGS = {
     "Tech House": "tech-house",
     "Deep House": "deep-house",
@@ -46,6 +45,26 @@ GENRE_SLUGS = {
     "Drum & Bass": "drum-and-bass",
     "Trance": "trance",
     "Breaks": "breaks",
+}
+
+# Traxsource genre IDs (for their URL structure: /genre/ID/slug)
+TRAXSOURCE_GENRE_IDS = {
+    "Tech House": 11,
+    "Deep House": 12,
+    "House": 2,
+    "Techno": 6,
+    "Progressive House": 15,
+    "Afro House": 42,
+    "Minimal / Deep Tech": 14,
+    "Nu Disco / Disco": 3,
+    "Soulful House": 13,
+    "Funky / Groove / Jackin' House": 35,
+    "Organic House / Downtempo": 49,
+    "Drum & Bass": 7,
+    "Trance": 8,
+    "Breaks": 25,
+    "Indie Dance": 37,
+    "Electronica": 18,
 }
 
 
@@ -82,72 +101,123 @@ class WeeklyDigReport:
     after_filter: int = 0
 
 
-class _BeatportPageParser(html.parser.HTMLParser):
-    """Parse Beatport genre pages for track listings via JSON-LD or meta tags."""
+class _TraxsourceParser(html.parser.HTMLParser):
+    """Parse Traxsource new releases page for track listings.
+
+    Traxsource is server-rendered HTML, so we get real track data:
+    artist, title, label, genre, BPM, key.
+    """
 
     def __init__(self):
         super().__init__()
-        self.in_script = False
-        self.script_type = ""
-        self.json_ld_data = []
-        self.title = ""
-        self.in_title = False
-        self._current_data = []
-
-    def handle_starttag(self, tag, attrs):
-        attrs_dict = dict(attrs)
-        if tag == "script" and attrs_dict.get("type") == "application/ld+json":
-            self.in_script = True
-            self._current_data = []
-        if tag == "title":
-            self.in_title = True
-            self._current_data = []
-
-    def handle_data(self, data):
-        if self.in_script or self.in_title:
-            self._current_data.append(data)
-
-    def handle_endtag(self, tag):
-        if tag == "script" and self.in_script:
-            self.in_script = False
-            raw = "".join(self._current_data).strip()
-            if raw:
-                try:
-                    self.json_ld_data.append(json.loads(raw))
-                except json.JSONDecodeError:
-                    pass
-        if tag == "title" and self.in_title:
-            self.in_title = False
-            self.title = "".join(self._current_data).strip()
-
-
-class _DuckDuckGoParser(html.parser.HTMLParser):
-    """Parse DuckDuckGo HTML results for Beatport new release links."""
-
-    def __init__(self):
-        super().__init__()
-        self.results: list[dict[str, str]] = []
-        self._in_result = False
-        self._current_href = ""
+        self.tracks: list[dict] = []
+        self._in_track = False
+        self._in_title = False
+        self._in_artists = False
+        self._in_label = False
+        self._in_genre = False
+        self._in_bpm = False
+        self._in_key = False
+        self._current: dict = {}
         self._current_text: list[str] = []
+        self._depth = 0
+        self._track_class_names = {"trk-row", "trklist-row", "track-row"}
+        self._current_href = ""
 
     def handle_starttag(self, tag, attrs):
         attrs_dict = dict(attrs)
-        if tag == "a" and "result__a" in attrs_dict.get("class", ""):
-            self._in_result = True
+        cls = attrs_dict.get("class", "")
+
+        # Detect track row containers
+        if tag in ("div", "li", "tr") and any(tc in cls for tc in self._track_class_names):
+            self._in_track = True
+            self._current = {}
+
+        if not self._in_track:
+            return
+
+        # Track title link
+        if tag == "a" and "trk-name" in cls:
+            self._in_title = True
+            self._current_text = []
             self._current_href = attrs_dict.get("href", "")
+
+        # Artist link
+        if tag == "a" and ("trk-artist" in cls or "artists" in cls):
+            self._in_artists = True
+            self._current_text = []
+
+        # Label
+        if tag == "a" and "trk-label" in cls:
+            self._in_label = True
+            self._current_text = []
+
+        # Genre
+        if tag == "a" and "trk-genre" in cls:
+            self._in_genre = True
+            self._current_text = []
+
+        # BPM and Key via data attributes
+        if attrs_dict.get("data-bpm"):
+            self._current["bpm"] = attrs_dict["data-bpm"]
+        if attrs_dict.get("data-key"):
+            self._current["key"] = attrs_dict["data-key"]
+
+        # Also check span classes for BPM/key
+        if tag == "span" and "bpm" in cls.lower():
+            self._in_bpm = True
+            self._current_text = []
+        if tag == "span" and "key" in cls.lower():
+            self._in_key = True
             self._current_text = []
 
     def handle_data(self, data):
-        if self._in_result:
-            self._current_text.append(data)
+        if self._in_title or self._in_artists or self._in_label or self._in_genre:
+            self._current_text.append(data.strip())
+        if self._in_bpm:
+            self._current_text.append(data.strip())
+        if self._in_key:
+            self._current_text.append(data.strip())
 
     def handle_endtag(self, tag):
-        if tag == "a" and self._in_result:
-            self._in_result = False
-            text = "".join(self._current_text).strip()
-            if self._current_href and text:
-                self.results.append({"url": self._current_href, "text": text})
+        if tag == "a" and self._in_title:
+            self._in_title = False
+            self._current["title"] = " ".join(self._current_text).strip()
+            if self._current_href:
+                self._current["url"] = f"https://www.traxsource.com{self._current_href}" if self._current_href.startswith("/") else self._current_href
+
+        if tag == "a" and self._in_artists:
+            self._in_artists = False
+            artist = " ".join(self._current_text).strip()
+            if artist:
+                existing = self._current.get("artist", "")
+                self._current["artist"] = f"{existing}, {artist}" if existing else artist
+
+        if tag == "a" and self._in_label:
+            self._in_label = False
+            self._current["label"] = " ".join(self._current_text).strip()
+
+        if tag == "a" and self._in_genre:
+            self._in_genre = False
+            self._current["genre_tag"] = " ".join(self._current_text).strip()
+
+        if tag == "span" and self._in_bpm:
+            self._in_bpm = False
+            bpm_text = " ".join(self._current_text).strip()
+            if bpm_text:
+                self._current["bpm"] = bpm_text
+
+        if tag == "span" and self._in_key:
+            self._in_key = False
+            key_text = " ".join(self._current_text).strip()
+            if key_text:
+                self._current["key"] = key_text
+
+        # End of track row
+        if tag in ("div", "li", "tr") and self._in_track and self._current.get("title"):
+            self.tracks.append(self._current)
+            self._in_track = False
+            self._current = {}
 
 
 def _web_get(url: str) -> Optional[str]:
@@ -165,62 +235,66 @@ def _web_get(url: str) -> Optional[str]:
         return None
 
 
-def _search_beatport_releases(genre: str, genre_slug: str) -> list[NewRelease]:
-    """Search for new releases on Beatport via DuckDuckGo (Beatport is a JS SPA)."""
+def _search_traxsource_releases(genre: str, genre_slug: str) -> list[NewRelease]:
+    """Scrape Traxsource new releases page for a genre.
+
+    Traxsource is server-rendered HTML with actual track data (artist, title,
+    label, BPM, key) unlike Beatport which is a JS SPA.
+    """
     releases = []
 
-    query = f"site:beatport.com {genre} new releases 2026"
-    encoded = urllib.parse.quote_plus(query)
-    url = f"https://html.duckduckgo.com/html/?q={encoded}"
+    # Try direct Traxsource genre page first
+    genre_id = TRAXSOURCE_GENRE_IDS.get(genre)
+    if genre_id:
+        url = f"https://www.traxsource.com/genre/{genre_id}/{genre_slug}/tracks?cn=new"
+        time.sleep(WEB_RATE_LIMIT)
+        html_content = _web_get(url)
+        if html_content:
+            parser = _TraxsourceParser()
+            try:
+                parser.feed(html_content)
+            except Exception:
+                pass
+            for t in parser.tracks:
+                bpm = None
+                if t.get("bpm"):
+                    try:
+                        bpm = float(t["bpm"])
+                    except (ValueError, TypeError):
+                        pass
+                releases.append(NewRelease(
+                    title=t.get("title", ""),
+                    artist=t.get("artist", ""),
+                    label=t.get("label", ""),
+                    bpm=bpm,
+                    key=t.get("key"),
+                    genre=t.get("genre_tag", genre),
+                    url=t.get("url", ""),
+                ))
 
-    time.sleep(WEB_RATE_LIMIT)
-    html_content = _web_get(url)
-    if not html_content:
-        return releases
-
-    parser = _DuckDuckGoParser()
-    try:
-        parser.feed(html_content)
-    except Exception:
-        return releases
-
-    # Parse search results for track info
-    for result in parser.results[:20]:
-        text = result["text"]
-        href = result["url"]
-
-        # Beatport URLs: /track/name/12345 or /release/name/12345
-        if "beatport.com" not in href:
-            continue
-
-        # Try to extract artist - title from result text
-        # Common format: "Artist - Title on Beatport" or "Title by Artist"
-        artist = ""
-        title = text
-
-        # Pattern: "Title by Artist"
-        by_match = re.match(r"(.+?)\s+by\s+(.+?)(?:\s+on\s+Beatport)?$", text, re.IGNORECASE)
-        if by_match:
-            title = by_match.group(1).strip()
-            artist = by_match.group(2).strip()
-
-        # Pattern: "Artist - Title"
-        dash_match = re.match(r"(.+?)\s*[-–—]\s*(.+?)(?:\s+on\s+Beatport)?$", text)
-        if dash_match and not artist:
-            artist = dash_match.group(1).strip()
-            title = dash_match.group(2).strip()
-
-        # Clean up
-        title = re.sub(r"\s*\|\s*Beatport.*$", "", title)
-        title = re.sub(r"\s*on Beatport.*$", "", title, flags=re.IGNORECASE)
-
-        if title and len(title) > 2:
-            releases.append(NewRelease(
-                title=title,
-                artist=artist,
-                genre=genre,
-                url=href,
-            ))
+    # Fallback: DuckDuckGo search for Traxsource tracks
+    if not releases:
+        query = f"site:traxsource.com {genre} new releases"
+        encoded = urllib.parse.quote_plus(query)
+        url = f"https://html.duckduckgo.com/html/?q={encoded}"
+        time.sleep(WEB_RATE_LIMIT)
+        html_content = _web_get(url)
+        if html_content:
+            # Parse DuckDuckGo results
+            for match in re.finditer(
+                r'class="result__a"[^>]*href="([^"]*traxsource[^"]*)"[^>]*>([^<]+)',
+                html_content,
+            ):
+                href, text = match.group(1), match.group(2).strip()
+                # Try to extract artist - title
+                parts = re.split(r"\s*[-–—]\s*", text, maxsplit=1)
+                if len(parts) == 2:
+                    releases.append(NewRelease(
+                        title=parts[1].strip(),
+                        artist=parts[0].strip(),
+                        genre=genre,
+                        url=href,
+                    ))
 
     return releases
 
@@ -255,33 +329,45 @@ def _check_library_overlap(
     releases: list[NewRelease],
     library_path: Optional[Path] = None,
 ) -> None:
-    """Mark releases where artist or title already exists in library."""
-    if not library_path:
-        return
-
+    """Mark releases where artist or title already exists in library (DB-first)."""
+    # Method 1: DB cross-reference (fast, reliable)
+    db_paths = set()
     try:
-        audio_files = find_audio_files(library_path)
+        from cratedigger.utils.db import get_connection
+        conn = get_connection()
+        rows = conn.execute("SELECT filepath FROM audio_analysis").fetchall()
+        conn.close()
+        db_paths = {_normalize_artist(Path(r[0]).stem) for r in rows}
     except Exception:
-        return
+        pass
 
-    file_stems = {f.stem.lower() for f in audio_files}
-    file_stems_norm = {_normalize_artist(s) for s in file_stems}
+    # Method 2: Filesystem fallback
+    if not db_paths and library_path:
+        try:
+            audio_files = find_audio_files(library_path)
+            db_paths = {_normalize_artist(f.stem) for f in audio_files}
+        except Exception:
+            pass
+
+    if not db_paths:
+        return
 
     for release in releases:
         artist_norm = _normalize_artist(release.artist)
         title_norm = _normalize_artist(release.title)
 
         # Check if exact title match exists
-        for stem in file_stems_norm:
-            if title_norm in stem and artist_norm in stem:
+        for stem in db_paths:
+            if title_norm and artist_norm and title_norm in stem and artist_norm in stem:
                 release.in_library = True
                 break
 
         # Check if artist exists in library
-        for stem in file_stems_norm:
-            if artist_norm and artist_norm in stem:
-                release.artist_in_library = True
-                break
+        if not release.in_library:
+            for stem in db_paths:
+                if artist_norm and artist_norm in stem:
+                    release.artist_in_library = True
+                    break
 
 
 def _check_streaming_overlap(
@@ -377,14 +463,14 @@ def scan_new_releases(
 
     report.genres_scanned = scan_genres
 
-    # Scan each genre
+    # Scan each genre via Traxsource
     all_releases = []
     for genre in scan_genres:
         slug = GENRE_SLUGS.get(genre, genre.lower().replace(" ", "-"))
-        console.print(f"  Scanning [yellow]{genre}[/yellow]...")
-        releases = _search_beatport_releases(genre, slug)
+        console.print(f"  Scanning [yellow]{genre}[/yellow] on Traxsource...")
+        releases = _search_traxsource_releases(genre, slug)
         all_releases.extend(releases)
-        console.print(f"    Found {len(releases)} results")
+        console.print(f"    Found {len(releases)} tracks")
 
     report.total_found = len(all_releases)
 

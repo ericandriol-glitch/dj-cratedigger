@@ -33,8 +33,8 @@ def scan_library(path: str = Query(...)):
 
     Reads artist, title, BPM, key, genre from file tags via mutagen.
     """
-    from cratedigger.scanner import find_audio_files
     from cratedigger.metadata import read_metadata
+    from cratedigger.scanner import find_audio_files
     from cratedigger.utils.db import get_connection
 
     scan_path = Path(path)
@@ -86,7 +86,6 @@ def scan_library(path: str = Query(...)):
 def library_stats():
     """Library overview: track counts, health score, metadata completeness."""
     from cratedigger.utils.db import get_connection
-    from cratedigger.digger.profile import load_profile
 
     conn = get_connection()
 
@@ -101,7 +100,6 @@ def library_stats():
     conn.close()
 
     # Read metadata completeness from files (sample if large)
-    title_artist_count = total  # DB entries always have filepath, assume tagged
     artwork_count = 0  # Would need mutagen check — skip for now
 
     # Health score
@@ -190,8 +188,8 @@ def library_tracks(
     filter: str = Query("all"),
 ):
     """Paginated track list with metadata from DB + file tags."""
-    from cratedigger.utils.db import get_connection
     from cratedigger.metadata import read_metadata
+    from cratedigger.utils.db import get_connection
 
     conn = get_connection()
 
@@ -292,11 +290,11 @@ def dj_profile():
 @app.get("/api/dig/label")
 def dig_label(artist: str = Query(...)):
     """Research labels for an artist."""
-    from cratedigger.digger.label import research_label
+    from rich.console import Console
 
     # Patch Rich consoles to write to devnull in server context
     import cratedigger.digger.label as _label_mod
-    from rich.console import Console
+    from cratedigger.digger.label import research_label
     _null = Console(file=io.StringIO(), force_terminal=False)
     _orig = _label_mod.console
     _label_mod.console = _null
@@ -327,13 +325,13 @@ def dig_label(artist: str = Query(...)):
             ],
             "labels": [
                 {
-                    "name": l.name,
-                    "country": l.country,
-                    "type": l.label_type,
-                    "urls": l.urls,
-                    "source": l.source,
+                    "name": lb.name,
+                    "country": lb.country,
+                    "type": lb.label_type,
+                    "urls": lb.urls,
+                    "source": lb.source,
                 }
-                for l in report.labels
+                for lb in report.labels
             ],
             "roster": {
                 label_name: [
@@ -359,8 +357,9 @@ def dig_festival(lineup: str = Query(...), name: str = Query("Festival")):
         return {"report": None}
 
     # Patch Rich console for server context
-    import cratedigger.digger.festival as _fest_mod
     from rich.console import Console
+
+    import cratedigger.digger.festival as _fest_mod
     _null = Console(file=io.StringIO(), force_terminal=False)
     _orig = _fest_mod.console
     _fest_mod.console = _null
@@ -398,11 +397,11 @@ def dig_festival(lineup: str = Query(...), name: str = Query("Festival")):
 @app.get("/api/dig/artist")
 def dig_artist(name: str = Query(...)):
     """Research an artist across MusicBrainz, library, and streaming."""
-    from cratedigger.digger.artist_research import research_artist
+    from rich.console import Console
 
     # Patch Rich console for server context
     import cratedigger.digger.artist_research as _art_mod
-    from rich.console import Console
+    from cratedigger.digger.artist_research import research_artist
     _null = Console(file=io.StringIO(), force_terminal=False)
     _orig = _art_mod.console
     _art_mod.console = _null
@@ -436,6 +435,8 @@ def dig_artist(name: str = Query(...)):
             "library_tracks": report.library_tracks,
             "spotify_status": report.spotify_status,
             "discogs_releases": report.discogs_releases[:15],
+            "bpm_profile": report.bpm_profile,
+            "key_profile": report.key_profile,
         }
     }
 
@@ -446,11 +447,11 @@ def dig_artist(name: str = Query(...)):
 @app.get("/api/dig/weekly")
 def dig_weekly(genres: str = Query(None)):
     """Scan new releases matching DJ profile."""
-    from cratedigger.digger.weekly_dig import scan_new_releases
+    from rich.console import Console
 
     # Patch Rich console for server context
     import cratedigger.digger.weekly_dig as _dig_mod
-    from rich.console import Console
+    from cratedigger.digger.weekly_dig import scan_new_releases
     _null = Console(file=io.StringIO(), force_terminal=False)
     _orig = _dig_mod.console
     _dig_mod.console = _null

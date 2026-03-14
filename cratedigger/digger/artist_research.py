@@ -53,22 +53,60 @@ class ArtistProfile:
     library_tracks: list[str] = field(default_factory=list)
     spotify_status: Optional[dict] = None
     discogs_releases: list[dict] = field(default_factory=list)
+    bpm_profile: Optional[dict] = None  # {min, max, avg, distribution}
+    key_profile: Optional[dict] = None  # {top_keys: [{key, count}]}
+
+
+# Tags/disambiguations that indicate an electronic music artist
+_ELECTRONIC_SIGNALS = {
+    "dj", "producer", "electronic", "house", "techno", "trance", "drum and bass",
+    "dubstep", "ambient", "edm", "dance", "deep house", "tech house", "minimal",
+    "disco", "garage", "breakbeat", "jungle", "bass", "electronica", "remix",
+}
+
+
+def _is_electronic_artist(artist: dict) -> bool:
+    """Check if a MusicBrainz artist result looks like an electronic music artist."""
+    # Check disambiguation
+    disambig = (artist.get("disambiguation") or "").lower()
+    if any(sig in disambig for sig in _ELECTRONIC_SIGNALS):
+        return True
+
+    # Check tags
+    for tag in artist.get("tag-list", []):
+        if tag.get("name", "").lower() in _ELECTRONIC_SIGNALS:
+            return True
+
+    # Check if they have URLs to DJ platforms
+    # (not available in search results, but aliases sometimes help)
+    return False
 
 
 def _search_artist_mb(name: str) -> Optional[dict]:
-    """Search MusicBrainz for an artist and return the best match."""
+    """Search MusicBrainz for an artist, preferring electronic music artists."""
     mb = _get_mb()
     try:
         time.sleep(RATE_LIMIT)
-        result = mb.search_artists(name, limit=5)
+        result = mb.search_artists(name, limit=10)
         artists = result.get("artist-list", [])
         if not artists:
             return None
 
-        # Prefer exact name match
         name_lower = name.lower().strip()
+
+        # Pass 1: exact name + electronic signal
+        for a in artists:
+            if a.get("name", "").lower().strip() == name_lower and _is_electronic_artist(a):
+                return a
+
+        # Pass 2: exact name match (any type)
         for a in artists:
             if a.get("name", "").lower().strip() == name_lower:
+                return a
+
+        # Pass 3: any result with electronic signal
+        for a in artists:
+            if _is_electronic_artist(a):
                 return a
 
         # Fall back to first result
@@ -197,25 +235,78 @@ def _cross_reference_library(
     artist_name: str,
     library_path: Optional[Path] = None,
 ) -> list[str]:
-    """Find tracks by this artist in the DJ's library."""
-    if not library_path:
-        return []
-
-    try:
-        audio_files = find_audio_files(library_path)
-    except Exception:
-        return []
-
-    artist_norm = _normalize_artist(artist_name)
+    """Find tracks by this artist in the DJ's library using DB + filesystem."""
     matches = []
 
-    for fp in audio_files:
-        stem = fp.stem.lower()
-        # Check if artist name appears in filename (common format: "Artist - Title")
-        if artist_norm in _normalize_artist(stem):
-            matches.append(fp.name)
+    # Method 1: Query the database (most reliable)
+    try:
+        from cratedigger.utils.db import get_connection
+        conn = get_connection()
+        artist_pattern = f"%{artist_name}%"
+        rows = conn.execute(
+            "SELECT filepath FROM audio_analysis WHERE filepath LIKE ?",
+            (artist_pattern,),
+        ).fetchall()
+        conn.close()
+        for row in rows:
+            matches.append(Path(row[0]).name)
+    except Exception:
+        pass
 
-    return sorted(matches)
+    # Method 2: Filesystem fallback if DB didn't find anything
+    if not matches and library_path:
+        try:
+            audio_files = find_audio_files(library_path)
+            artist_norm = _normalize_artist(artist_name)
+            for fp in audio_files:
+                if artist_norm in _normalize_artist(fp.stem):
+                    matches.append(fp.name)
+        except Exception:
+            pass
+
+    return sorted(set(matches))
+
+
+def _get_bpm_key_profile(artist_name: str) -> tuple[Optional[dict], Optional[dict]]:
+    """Get BPM and key distribution for an artist from the library DB."""
+    try:
+        from cratedigger.utils.db import get_connection
+        conn = get_connection()
+        artist_pattern = f"%{artist_name}%"
+        rows = conn.execute(
+            "SELECT bpm, key_camelot FROM audio_analysis "
+            "WHERE filepath LIKE ? AND bpm IS NOT NULL",
+            (artist_pattern,),
+        ).fetchall()
+        conn.close()
+
+        if not rows:
+            return None, None
+
+        bpms = [r[0] for r in rows if r[0] and r[0] > 0]
+        keys = [r[1] for r in rows if r[1]]
+
+        bpm_profile = None
+        if bpms:
+            bpm_profile = {
+                "min": round(min(bpms), 1),
+                "max": round(max(bpms), 1),
+                "avg": round(sum(bpms) / len(bpms), 1),
+                "count": len(bpms),
+            }
+
+        key_profile = None
+        if keys:
+            from collections import Counter
+            key_counts = Counter(keys).most_common(5)
+            key_profile = {
+                "top_keys": [{"key": k, "count": c} for k, c in key_counts],
+                "count": len(keys),
+            }
+
+        return bpm_profile, key_profile
+    except Exception:
+        return None, None
 
 
 def _check_spotify_status(artist_name: str) -> Optional[dict]:
@@ -354,12 +445,25 @@ def research_artist(
         console.print("  Fetching labels...")
         profile.labels = _extract_labels_from_releases(mbid)
 
-    # Step 4: Library cross-reference
-    if library_path:
-        console.print("  Cross-referencing library...")
-        profile.library_tracks = _cross_reference_library(artist_name, library_path)
+    # Step 4: Library cross-reference (DB-first, then filesystem)
+    console.print("  Cross-referencing library...")
+    profile.library_tracks = _cross_reference_library(artist_name, library_path)
 
-    # Step 5: Spotify status
+    # Step 4b: BPM/key profile from library
+    profile.bpm_profile, profile.key_profile = _get_bpm_key_profile(artist_name)
+
+    # Step 5: Spotify genres fallback (if MusicBrainz returned no genres)
+    if not profile.genres:
+        console.print("  Looking up Spotify genres...")
+        try:
+            from cratedigger.digger.spotify_genres import lookup_spotify_genres
+            sp_genres = lookup_spotify_genres(artist_name)
+            if sp_genres:
+                profile.genres = sp_genres[:5]
+        except Exception:
+            pass
+
+    # Step 5b: Spotify status
     if include_spotify:
         console.print("  Checking Spotify status...")
         profile.spotify_status = _check_spotify_status(artist_name)
@@ -394,6 +498,17 @@ def display_artist_report(report: ArtistProfile) -> None:
     if report.genres:
         genres_str = ", ".join(report.genres)
         console.print(f"  [dim]Genres:[/dim] [yellow]{genres_str}[/yellow]")
+
+    # BPM/Key profile
+    if report.bpm_profile or report.key_profile:
+        console.print()
+        console.print("  [bold]Sound Profile (from your library)[/bold]")
+        if report.bpm_profile:
+            bp = report.bpm_profile
+            console.print(f"  BPM: [cyan]{bp['min']} – {bp['max']}[/cyan] (avg {bp['avg']}, {bp['count']} tracks)")
+        if report.key_profile:
+            top_keys = ", ".join(f"{k['key']} ({k['count']})" for k in report.key_profile["top_keys"])
+            console.print(f"  Keys: [cyan]{top_keys}[/cyan]")
 
     # Your relationship with this artist
     console.print()

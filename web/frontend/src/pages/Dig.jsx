@@ -612,6 +612,42 @@ function ArtistResearch() {
             )}
           </div>
 
+          {/* Sound profile (BPM/Key from library) */}
+          {(report.bpm_profile || report.key_profile) && (
+            <>
+              <Sec label="Sound Profile (from your library)" icon={Music} />
+              <div style={{ background: P.bgCard, border: `1px solid ${P.border}`, borderRadius: 14, padding: 16, marginBottom: 16 }}>
+                <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                  {report.bpm_profile && (
+                    <>
+                      <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: 20, fontWeight: 800, fontFamily: F.d, color: P.lime, lineHeight: 1 }}>{report.bpm_profile.min}-{report.bpm_profile.max}</div>
+                        <div style={{ fontSize: 8, fontFamily: F.m, color: P.textMut, letterSpacing: 0.8, marginTop: 3 }}>BPM RANGE</div>
+                      </div>
+                      <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: 20, fontWeight: 800, fontFamily: F.d, color: P.azure, lineHeight: 1 }}>{report.bpm_profile.avg}</div>
+                        <div style={{ fontSize: 8, fontFamily: F.m, color: P.textMut, letterSpacing: 0.8, marginTop: 3 }}>AVG BPM</div>
+                      </div>
+                      <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: 20, fontWeight: 800, fontFamily: F.d, color: P.cream, lineHeight: 1 }}>{report.bpm_profile.count}</div>
+                        <div style={{ fontSize: 8, fontFamily: F.m, color: P.textMut, letterSpacing: 0.8, marginTop: 3 }}>TRACKS</div>
+                      </div>
+                    </>
+                  )}
+                </div>
+                {report.key_profile?.top_keys && (
+                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 10 }}>
+                    {report.key_profile.top_keys.map((k, i) => (
+                      <span key={i} style={{ fontSize: 11, fontFamily: F.m, padding: "3px 8px", borderRadius: 5, background: `${P.mauve}12`, border: `1px solid ${P.mauve}20`, color: P.mauve }}>
+                        {k.key} <span style={{ fontSize: 9, color: P.textMut }}>({k.count})</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
           {/* Your relationship */}
           <Sec label="Your Relationship" icon={Users} />
           <div style={{ background: P.bgCard, border: `1px solid ${P.border}`, borderRadius: 14, padding: 16, marginBottom: 16 }}>
