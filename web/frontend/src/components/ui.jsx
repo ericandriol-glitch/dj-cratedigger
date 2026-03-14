@@ -241,6 +241,7 @@ export function Track({ t, i }) {
                       </span>
                       {r.bpm && <span style={{ fontSize: 10, fontFamily: F.m, color: P.lime }}>{r.bpm}</span>}
                       {r.key && <span style={{ fontSize: 10, fontFamily: F.m, color: camelotColor(r.key) }}>{r.key}</span>}
+                      {r.reason && <span style={{ fontSize: 8, fontFamily: F.m, color: P.textMut, letterSpacing: 0.5, padding: "1px 5px", borderRadius: 3, background: P.bgSurface }}>{r.reason}</span>}
                     </div>
                   ))}
                 </div>
