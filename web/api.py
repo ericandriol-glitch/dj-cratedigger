@@ -662,6 +662,87 @@ def dig_weekly(genres: str = Query(None)):
     }
 
 
+# ── Related Tracks (Harmonic Mixing) ──────────────────────
+
+
+@app.get("/api/library/related")
+def library_related(
+    filepath: str = Query(...),
+    limit: int = Query(5, ge=1, le=20),
+):
+    """Find tracks compatible for harmonic mixing (BPM ±3, compatible Camelot keys)."""
+    from cratedigger.harmonic.camelot import compatible_keys, VALID_KEYS
+    from cratedigger.metadata import read_metadata
+    from cratedigger.utils.db import get_connection
+
+    conn = get_connection()
+
+    # Get source track's BPM and key
+    row = conn.execute(
+        "SELECT bpm, key_camelot FROM audio_analysis WHERE filepath = ?",
+        (filepath,),
+    ).fetchone()
+    if not row or not row[0]:
+        conn.close()
+        return {"tracks": []}
+
+    src_bpm, src_key = row
+    bpm_lo, bpm_hi = src_bpm - 3, src_bpm + 3
+
+    # Find BPM-compatible tracks (exclude self)
+    candidates = conn.execute(
+        "SELECT filepath, bpm, key_camelot, energy, genre "
+        "FROM audio_analysis "
+        "WHERE bpm BETWEEN ? AND ? AND filepath != ? "
+        "LIMIT 200",
+        (bpm_lo, bpm_hi, filepath),
+    ).fetchall()
+    conn.close()
+
+    # Score and rank by key compatibility
+    compat_keys = set()
+    if src_key and src_key.strip() in VALID_KEYS:
+        compat_keys = set(compatible_keys(src_key.strip(), min_score=0.7))
+        compat_keys.add(src_key.strip())
+
+    scored = []
+    for fp, bpm, key, energy, genre in candidates:
+        key_score = 1.0 if key and key.strip() == src_key else (
+            0.9 if key and key.strip() in compat_keys else 0.3
+        )
+        bpm_score = 1.0 - abs(bpm - src_bpm) / 3.0
+        score = key_score * 0.6 + bpm_score * 0.4
+        scored.append((fp, bpm, key, energy, genre, score))
+
+    scored.sort(key=lambda x: -x[5])
+    top = scored[:limit]
+
+    tracks = []
+    for fp, bpm, key, energy, genre, score in top:
+        p = Path(fp)
+        title = p.stem
+        artist = ""
+        try:
+            meta = read_metadata(p)
+            if meta.title:
+                title = meta.title
+            if meta.artist:
+                artist = meta.artist
+        except Exception:
+            if " - " in p.stem:
+                parts = p.stem.split(" - ", 1)
+                artist, title = parts[0].strip(), parts[1].strip()
+
+        tracks.append({
+            "filepath": str(p), "title": title, "artist": artist,
+            "bpm": round(bpm) if bpm else None, "key": key or None,
+            "energy": round(energy, 2) if energy else None, "genre": genre or None,
+            "status": "complete" if bpm and key and genre else "partial" if bpm or key else "missing",
+        })
+
+    return {"tracks": tracks}
+
+
 # ── Audio Streaming ───────────────────────────────────────
 
 
