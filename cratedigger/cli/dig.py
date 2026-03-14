@@ -45,6 +45,115 @@ def dig_label(artist: str, library: str | None, no_web: bool) -> None:
         display_label_report(report)
 
 
+@dig.command("weekly")
+@click.option(
+    "--genre", "-g",
+    multiple=True,
+    default=None,
+    help="Genre(s) to scan. Defaults to your top genres from DJ profile.",
+)
+@click.option(
+    "--library", "-l",
+    type=click.Path(exists=True, file_okay=False, resolve_path=True),
+    default=None,
+    help="Path to music library for cross-reference.",
+)
+@click.option(
+    "--paste",
+    is_flag=True,
+    default=False,
+    help="Paste releases manually (one per line: Artist - Title).",
+)
+def dig_weekly(genre: tuple, library: str | None, paste: bool) -> None:
+    """Scan new releases against your DJ profile.
+
+    Uses Beatport web search + your DJ profile to find relevant new music.
+
+    Examples:\n
+      cratedigger dig weekly\n
+      cratedigger dig weekly -g "Tech House" -g "Deep House"\n
+      cratedigger dig weekly --paste
+    """
+    from ..digger.weekly_dig import (
+        display_weekly_report,
+        parse_manual_releases,
+        scan_new_releases,
+        WeeklyDigReport,
+    )
+
+    console = Console(force_terminal=True, force_jupyter=False)
+    console.print(f"\n  [bold magenta]DJ CrateDigger[/bold magenta] — Weekly Dig\n")
+
+    library_path = Path(library) if library else None
+
+    if paste:
+        console.print("  Paste releases (one per line: Artist - Title [Label])")
+        console.print("  Press Enter twice when done:\n")
+        lines = []
+        while True:
+            line = click.get_text_stream("stdin").readline().rstrip("\n")
+            if not line:
+                break
+            lines.append(line)
+
+        releases = parse_manual_releases("\n".join(lines))
+        report = WeeklyDigReport(
+            releases=releases,
+            total_found=len(releases),
+            after_filter=len(releases),
+            source="manual",
+        )
+        display_weekly_report(report)
+    else:
+        genres = list(genre) if genre else None
+        report = scan_new_releases(genres=genres, library_path=library_path)
+        display_weekly_report(report)
+
+
+@dig.command("artist")
+@click.argument("name")
+@click.option(
+    "--library", "-l",
+    type=click.Path(exists=True, file_okay=False, resolve_path=True),
+    default=None,
+    help="Path to music library for cross-reference.",
+)
+@click.option(
+    "--no-discogs",
+    is_flag=True,
+    default=False,
+    help="Skip Discogs lookup.",
+)
+@click.option(
+    "--no-spotify",
+    is_flag=True,
+    default=False,
+    help="Skip Spotify status check.",
+)
+def dig_artist(name: str, library: str | None, no_discogs: bool, no_spotify: bool) -> None:
+    """Research an artist across MusicBrainz, Discogs, Spotify, and your library.
+
+    Example: cratedigger dig artist "Solomun"
+    """
+    from ..digger.artist_research import display_artist_report, research_artist
+
+    console = Console(force_terminal=True, force_jupyter=False)
+    console.print(f"\n  [bold magenta]DJ CrateDigger[/bold magenta] — Researching [bold]{name}[/bold]...\n")
+
+    library_path = Path(library) if library else None
+    report = research_artist(
+        name,
+        library_path=library_path,
+        include_discogs=not no_discogs,
+        include_spotify=not no_spotify,
+    )
+
+    if report:
+        display_artist_report(report)
+    else:
+        console.print(f"  [yellow]No results found for '{name}'[/yellow]\n")
+
+
 @dig.command("festival")
 @click.argument("name", required=False, default=None)
 @click.option(
