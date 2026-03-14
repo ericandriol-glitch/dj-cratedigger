@@ -1,7 +1,8 @@
 import { P, F, camelotColor, energyColor, energyPct } from "../theme";
 import { usePlayer } from "../hooks/usePlayer";
+import { fetchApi } from "../hooks/useApi";
 import {
-  CircleCheck, AlertTriangle, CircleX, ChevronRight, Play,
+  CircleCheck, AlertTriangle, CircleX, ChevronRight, Play, Link2,
 } from "lucide-react";
 
 /* ─── Waveform ─── */
@@ -90,12 +91,25 @@ export function IssueRow({ icon: Icon, label, value, color, onClick }) {
 }
 
 /* ─── Track Card — DJ-first layout with expandable detail ─── */
-import { useState as useTrackState } from "react";
+import { useState as useTrackState, useEffect as useTrackEffect } from "react";
 export function Track({ t, i }) {
   const sc = { complete: P.healthy, partial: P.warning, missing: P.critical };
   const player = usePlayer();
   const isActive = player?.track?.filepath === t.filepath;
   const [expanded, setExpanded] = useTrackState(false);
+  const [related, setRelated] = useTrackState(null);
+  const [relatedLoading, setRelatedLoading] = useTrackState(false);
+
+  // Fetch related tracks when expanded
+  useTrackEffect(() => {
+    if (expanded && !related && t.filepath && t.bpm) {
+      setRelatedLoading(true);
+      fetchApi(`/api/library/related?filepath=${encodeURIComponent(t.filepath)}&limit=5`)
+        .then(data => setRelated(data.tracks || []))
+        .catch(() => setRelated([]))
+        .finally(() => setRelatedLoading(false));
+    }
+  }, [expanded]);
 
   return (
     <div style={{ borderBottom: `1px solid ${P.borderSub}` }}>
@@ -180,16 +194,62 @@ export function Track({ t, i }) {
 
       {/* Expanded detail panel */}
       {expanded && (
-        <div style={{
-          padding: "8px 0 14px 40px",
-          display: "flex", gap: 16, flexWrap: "wrap",
-          fontSize: 11, fontFamily: F.m, color: P.textSec,
-        }}>
-          {t.genre && <span><span style={{ color: P.textMut }}>Genre</span> {t.genre}</span>}
-          {t.bpm && <span><span style={{ color: P.textMut }}>BPM</span> {t.bpm}</span>}
-          {t.key && <span><span style={{ color: P.textMut }}>Key</span> <span style={{ color: camelotColor(t.key) }}>{t.key}</span></span>}
-          {t.energy != null && <span><span style={{ color: P.textMut }}>Energy</span> <span style={{ color: energyColor(t.energy) }}>{(t.energy * 10).toFixed(1)}</span></span>}
-          <span style={{ color: P.textMut, fontSize: 9, wordBreak: "break-all" }}>{t.filepath}</span>
+        <div style={{ padding: "8px 0 14px 40px" }}>
+          {/* Metadata row */}
+          <div style={{
+            display: "flex", gap: 16, flexWrap: "wrap",
+            fontSize: 11, fontFamily: F.m, color: P.textSec, marginBottom: 8,
+          }}>
+            {t.genre && <span><span style={{ color: P.textMut }}>Genre</span> {t.genre}</span>}
+            {t.bpm && <span><span style={{ color: P.textMut }}>BPM</span> {t.bpm}</span>}
+            {t.key && <span><span style={{ color: P.textMut }}>Key</span> <span style={{ color: camelotColor(t.key) }}>{t.key}</span></span>}
+            {t.energy != null && <span><span style={{ color: P.textMut }}>Energy</span> <span style={{ color: energyColor(t.energy) }}>{(t.energy * 10).toFixed(1)}</span></span>}
+          </div>
+          <div style={{ fontSize: 9, fontFamily: F.m, color: P.textMut, wordBreak: "break-all", marginBottom: 10 }}>
+            {t.filepath}
+          </div>
+
+          {/* Related tracks — "mixes well with" */}
+          {t.bpm && (
+            <div>
+              <div style={{
+                display: "flex", alignItems: "center", gap: 5, marginBottom: 6,
+                fontSize: 9, fontFamily: F.m, color: P.textMut, letterSpacing: 1.5, textTransform: "uppercase",
+              }}>
+                <Link2 size={9} /> Mixes well with
+              </div>
+              {relatedLoading && (
+                <div style={{ fontSize: 10, fontFamily: F.m, color: P.textMut, padding: "4px 0" }}>Finding compatible tracks...</div>
+              )}
+              {related && related.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  {related.map((r, j) => (
+                    <div
+                      key={j}
+                      onClick={(e) => { e.stopPropagation(); player?.play(r); }}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 8, padding: "5px 8px",
+                        borderRadius: 6, cursor: "pointer",
+                        background: player?.track?.filepath === r.filepath ? `${P.terracotta}10` : "transparent",
+                        transition: "background 0.1s ease",
+                      }}
+                      className="track-row"
+                    >
+                      <Play size={9} color={P.textMut} fill={P.textMut} style={{ flexShrink: 0 }} />
+                      <span style={{ fontSize: 11, fontFamily: F.b, color: P.textSec, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {r.artist ? `${r.artist} — ${r.title}` : r.title}
+                      </span>
+                      {r.bpm && <span style={{ fontSize: 10, fontFamily: F.m, color: P.lime }}>{r.bpm}</span>}
+                      {r.key && <span style={{ fontSize: 10, fontFamily: F.m, color: camelotColor(r.key) }}>{r.key}</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {related && related.length === 0 && (
+                <div style={{ fontSize: 10, fontFamily: F.m, color: P.textMut, padding: "4px 0" }}>No compatible tracks found in library</div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

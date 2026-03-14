@@ -198,12 +198,19 @@ export default function Library({ onNavigate, navParams = {} }) {
         )}
       </div>
 
-      {/* Pagination */}
+      {/* Pagination with page jump */}
       {totalPages > 1 && (
         <div style={{
-          display: "flex", justifyContent: "center", alignItems: "center", gap: 16,
+          display: "flex", justifyContent: "center", alignItems: "center", gap: 8,
           padding: "16px 0",
         }}>
+          <button onClick={() => setPage(0)} disabled={page === 0} style={{
+            background: P.bgCard, border: `1px solid ${P.border}`, borderRadius: 8,
+            padding: "8px 10px", cursor: page > 0 ? "pointer" : "default",
+            opacity: page > 0 ? 1 : 0.3, fontSize: 10, fontFamily: F.m, color: P.textSec,
+          }}>
+            1
+          </button>
           <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} style={{
             background: P.bgCard, border: `1px solid ${P.border}`, borderRadius: 8,
             padding: "8px 12px", cursor: page > 0 ? "pointer" : "default",
@@ -211,15 +218,35 @@ export default function Library({ onNavigate, navParams = {} }) {
           }}>
             <ChevronLeft size={14} color={P.textSec} />
           </button>
-          <span style={{ fontSize: 11, fontFamily: F.m, color: P.textSec }}>
-            {page + 1} / {totalPages}
-          </span>
+          <input
+            type="number"
+            min={1}
+            max={totalPages}
+            value={page + 1}
+            onChange={(e) => {
+              const v = parseInt(e.target.value, 10);
+              if (v >= 1 && v <= totalPages) setPage(v - 1);
+            }}
+            style={{
+              width: 44, textAlign: "center", padding: "6px 4px",
+              background: P.bgCard, border: `1px solid ${P.border}`, borderRadius: 6,
+              color: P.text, fontFamily: F.m, fontSize: 11, outline: "none",
+            }}
+          />
+          <span style={{ fontSize: 10, fontFamily: F.m, color: P.textMut }}>/ {totalPages}</span>
           <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} style={{
             background: P.bgCard, border: `1px solid ${P.border}`, borderRadius: 8,
             padding: "8px 12px", cursor: page < totalPages - 1 ? "pointer" : "default",
             opacity: page < totalPages - 1 ? 1 : 0.3, display: "flex", alignItems: "center",
           }}>
             <ChevronRight size={14} color={P.textSec} />
+          </button>
+          <button onClick={() => setPage(totalPages - 1)} disabled={page >= totalPages - 1} style={{
+            background: P.bgCard, border: `1px solid ${P.border}`, borderRadius: 8,
+            padding: "8px 10px", cursor: page < totalPages - 1 ? "pointer" : "default",
+            opacity: page < totalPages - 1 ? 1 : 0.3, fontSize: 10, fontFamily: F.m, color: P.textSec,
+          }}>
+            {totalPages}
           </button>
         </div>
       )}

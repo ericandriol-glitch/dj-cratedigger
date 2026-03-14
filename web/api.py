@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 # Force UTF-8 output for Rich console in submodules
 os.environ["PYTHONIOENCODING"] = "utf-8"
 
-from fastapi import FastAPI, Query, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 
@@ -130,6 +130,109 @@ def enrich_genres(limit: int = Query(50, ge=1, le=500)):
     conn.close()
 
     return {"enriched": enriched, "total_missing": total_missing}
+
+
+# ── Related Tracks ─────────────────────────────────────────
+
+
+@app.get("/api/library/related")
+def related_tracks(
+    filepath: str = Query(...),
+    limit: int = Query(8, ge=1, le=20),
+):
+    """Find tracks that mix well with a given track based on BPM + Key compatibility."""
+    from cratedigger.utils.db import get_connection
+
+    conn = get_connection()
+
+    # Get the source track's BPM and key
+    source = conn.execute(
+        "SELECT bpm, key_camelot, energy FROM audio_analysis WHERE filepath = ?",
+        (filepath,),
+    ).fetchone()
+
+    if not source or not source[0]:
+        conn.close()
+        return {"tracks": [], "source_bpm": None, "source_key": None}
+
+    src_bpm, src_key, src_energy = source
+
+    # Camelot compatibility: same key, +-1, major/minor swap
+    compatible_keys = _camelot_compatible(src_key) if src_key else []
+    key_placeholders = ",".join("?" * len(compatible_keys)) if compatible_keys else "''"
+
+    # Find tracks with similar BPM (+-6) and compatible keys
+    bpm_min = src_bpm - 6
+    bpm_max = src_bpm + 6
+
+    query = f"""
+        SELECT filepath, bpm, key_camelot, energy, genre
+        FROM audio_analysis
+        WHERE filepath != ?
+          AND bpm IS NOT NULL AND bpm BETWEEN ? AND ?
+          {f"AND key_camelot IN ({key_placeholders})" if compatible_keys else ""}
+        ORDER BY ABS(bpm - ?) ASC
+        LIMIT ?
+    """
+    params = [filepath, bpm_min, bpm_max] + compatible_keys + [src_bpm, limit]
+    rows = conn.execute(query, params).fetchall()
+    conn.close()
+
+    from cratedigger.metadata import read_metadata
+
+    tracks = []
+    for fp_str, bpm, key, energy, genre in rows:
+        fp = Path(fp_str)
+        title = fp.stem
+        artist = ""
+        try:
+            meta = read_metadata(fp)
+            if meta.title:
+                title = meta.title
+            if meta.artist:
+                artist = meta.artist
+        except Exception:
+            if " - " in fp.stem:
+                parts = fp.stem.split(" - ", 1)
+                artist, title = parts[0].strip(), parts[1].strip()
+
+        tracks.append({
+            "filepath": fp_str,
+            "title": title,
+            "artist": artist,
+            "bpm": round(bpm) if bpm else None,
+            "key": key,
+            "energy": round(energy, 2) if energy else None,
+            "genre": genre,
+        })
+
+    return {
+        "tracks": tracks,
+        "source_bpm": round(src_bpm) if src_bpm else None,
+        "source_key": src_key,
+    }
+
+
+def _camelot_compatible(key: str) -> list[str]:
+    """Return Camelot keys compatible with the given key."""
+    if not key or len(key) < 2:
+        return []
+    try:
+        num = int(key[:-1])
+        letter = key[-1].upper()
+    except (ValueError, IndexError):
+        return []
+
+    result = [key]  # Same key
+    # Adjacent +-1
+    prev_num = 12 if num == 1 else num - 1
+    next_num = 1 if num == 12 else num + 1
+    result.append(f"{prev_num}{letter}")
+    result.append(f"{next_num}{letter}")
+    # Major/minor swap (same number)
+    other = "B" if letter == "A" else "A"
+    result.append(f"{num}{other}")
+    return result
 
 
 # ── Library Stats ──────────────────────────────────────────
@@ -281,7 +384,6 @@ def library_tracks(
     total = conn.execute(f"SELECT COUNT(*) FROM audio_analysis {where}", params).fetchone()[0]
 
     # Push NULLs to the bottom regardless of sort direction
-    null_order = "LAST" if sort_col != "filepath" else "FIRST"
     rows = conn.execute(
         f"SELECT filepath, bpm, key_camelot, energy, genre "
         f"FROM audio_analysis {where} "
