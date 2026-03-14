@@ -1,0 +1,16 @@
+cues:
+  - name: "Intro"
+    detect: intro_end
+    color: {r: 40, g: 226, b: 160}    # green
+  - name: "Breakdown"
+    detect: first_breakdown
+    color: {r: 123, g: 147, b: 255}   # blue
+  - name: "Drop"
+    detect: first_drop
+    color: {r: 255, g: 90, b: 126}    # red
+  - name: "Build"
+    detect: 64_beats_before_first_drop
+    color: {r: 167, g: 139, b: 250}   # purple
+  - name: "Mix Out"
+    detect: outro_start
+    color: {r: 255, g: 185, b: 80}    # orange
