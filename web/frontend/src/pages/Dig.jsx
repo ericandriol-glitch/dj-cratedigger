@@ -899,7 +899,7 @@ export default function Dig() {
           <Compass size={18} color={P.terracotta} />
         </div>
         <div>
-          <div style={{ fontSize: 16, fontWeight: 700, fontFamily: F.d, color: P.cream }}>Dig Deeper</div>
+          <div style={{ fontSize: 22, fontWeight: 700, fontFamily: F.d, color: P.cream }}>Dig Deeper</div>
           <div style={{ fontSize: 11, fontFamily: F.m, color: P.textMut }}>Research artists, labels, festivals & new releases</div>
         </div>
       </div>

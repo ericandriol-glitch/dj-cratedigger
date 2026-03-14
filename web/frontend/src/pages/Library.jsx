@@ -104,7 +104,7 @@ export default function Library({ onNavigate, navParams = {} }) {
           <Disc3 size={18} color={P.lime} />
         </div>
         <div>
-          <div style={{ fontSize: 16, fontWeight: 700, fontFamily: F.d, color: P.cream }}>Library</div>
+          <div style={{ fontSize: 22, fontWeight: 700, fontFamily: F.d, color: P.cream }}>Library</div>
           <div style={{ fontSize: 11, fontFamily: F.m, color: P.textMut }}>
             {total.toLocaleString()} tracks
           </div>
@@ -179,8 +179,19 @@ export default function Library({ onNavigate, navParams = {} }) {
               <Track key={t.filepath || i} t={t} i={page * PAGE_SIZE + i} />
             ))}
             {tracks.length === 0 && (
-              <div style={{ textAlign: "center", padding: 30, color: P.textMut, fontFamily: F.m, fontSize: 12 }}>
-                {search ? "No matching tracks" : "No tracks found. Run a scan first."}
+              <div style={{ textAlign: "center", padding: "30px 0" }}>
+                {search ? (
+                  <div style={{ color: P.textMut, fontFamily: F.m, fontSize: 12 }}>
+                    No tracks matching "{search}"
+                  </div>
+                ) : (
+                  <>
+                    <Disc3 size={20} color={P.textMut} style={{ margin: "0 auto 8px" }} />
+                    <div style={{ color: P.textSec, fontFamily: F.b, fontSize: 13 }}>
+                      No tracks yet. Scan your library to get started.
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </>

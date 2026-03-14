@@ -106,7 +106,7 @@ export default function Home({ onNavigate }) {
         {statsLoading ? <Loader text="Loading library stats..." /> : (
           <>
             {/* Library Health — hero treatment */}
-            <Sec label="Library Health" icon={Radio} />
+            <Sec label="Library Health" icon={Radio} color={P.healthy} />
             <div className="section-enter" style={{ display: "flex", gap: 14, marginBottom: 6 }}>
               <Card hero style={{
                 padding: "20px 18px", display: "flex", flexDirection: "column", alignItems: "center",
@@ -138,7 +138,7 @@ export default function Home({ onNavigate }) {
             {/* Metadata + Genre — side by side on desktop */}
             <div className="two-col-grid">
               <div className="section-enter">
-                <Sec label="Metadata" icon={SlidersHorizontal} />
+                <Sec label="Metadata" icon={SlidersHorizontal} color={P.azure} />
                 <Card>
                   <CBar label="Title & Artist" value={comp.title_artist?.count || 0} max={comp.title_artist?.total || 1} color={P.healthy} icon={Music} />
                   <CBar label="BPM / Tempo" value={comp.bpm?.count || 0} max={comp.bpm?.total || 1} color={P.lime} icon={AudioLines} />
@@ -148,7 +148,7 @@ export default function Home({ onNavigate }) {
               </div>
               {!genresLoading && genres.length > 0 && (
                 <div className="section-enter">
-                  <Sec label="Genre Spread" icon={Target} />
+                  <Sec label="Genre Spread" icon={Target} color={P.mauve} />
                   <Card>
                     {genres.slice(0, 8).map((g, i) => (
                       <Genre key={g.name} name={g.name} pct={g.pct} color={genreColor(i)} />
@@ -162,7 +162,7 @@ export default function Home({ onNavigate }) {
 
         {/* Tracks */}
         <div className="section-enter">
-          <Sec label="Tracks" icon={Disc3} />
+          <Sec label="Tracks" icon={Disc3} color={P.lime} />
           <Card style={{ padding: "14px 16px" }}>
             <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 8, marginBottom: 4 }}>
               {[
@@ -193,8 +193,25 @@ export default function Home({ onNavigate }) {
                   </div>
                 )}
                 {tracks.length === 0 && (
-                  <div style={{ textAlign: "center", padding: "40px 0", color: P.textMut, fontFamily: F.m, fontSize: 12 }}>
-                    No tracks found. Run a scan first.
+                  <div style={{ textAlign: "center", padding: "40px 0" }}>
+                    <div style={{
+                      width: 48, height: 48, borderRadius: 12, margin: "0 auto 12px",
+                      background: `${P.terracotta}08`, border: `1px solid ${P.terracotta}15`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      <Disc3 size={20} color={P.terracotta} />
+                    </div>
+                    <div style={{ color: P.textSec, fontFamily: F.b, fontSize: 13, marginBottom: 12 }}>
+                      No tracks in your library yet
+                    </div>
+                    <button onClick={() => onNavigate?.("library")} style={{
+                      padding: "8px 16px", borderRadius: 8, border: "none",
+                      background: P.terracotta, color: "#fff",
+                      fontFamily: F.d, fontSize: 12, fontWeight: 700,
+                      cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5,
+                    }}>
+                      <RotateCw size={12} strokeWidth={2.5} /> Scan Library
+                    </button>
                   </div>
                 )}
               </>

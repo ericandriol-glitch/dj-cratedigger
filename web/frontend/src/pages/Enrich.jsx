@@ -53,7 +53,7 @@ export default function Enrich() {
           <Sparkles size={18} color={P.mauve} />
         </div>
         <div>
-          <div style={{ fontSize: 16, fontWeight: 700, fontFamily: F.d, color: P.cream }}>Enrich</div>
+          <div style={{ fontSize: 22, fontWeight: 700, fontFamily: F.d, color: P.cream }}>Enrich</div>
           <div style={{ fontSize: 11, fontFamily: F.m, color: P.textMut }}>Fill gaps in your library metadata</div>
         </div>
       </div>
