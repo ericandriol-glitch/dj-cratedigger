@@ -1,0 +1,85 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cratedigger"
+version = "0.1.0"
+description = "A local-first CLI toolkit for DJs to manage music libraries, prep for gigs, and discover new music."
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.12"
+authors = [
+    {name = "Eric Andriol", email = "eric.andriol@gmail.com"},
+]
+keywords = ["dj", "music", "library", "cli", "rekordbox", "camelot", "beatport"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Sound/Audio",
+]
+
+dependencies = [
+    "click>=8.1.0",
+    "mutagen>=1.47.0",
+    "rich>=13.0.0",
+    "tinytag>=1.9.0",
+    "pyyaml>=6.0",
+    "requests>=2.31.0",
+]
+
+[project.optional-dependencies]
+streaming = [
+    "spotipy>=2.23.0",
+    "google-api-python-client>=2.100.0",
+]
+analysis = [
+    "essentia>=2.1b6",
+]
+fingerprint = [
+    "pyacoustid>=1.3.0",
+]
+discovery = [
+    "musicbrainzngs>=0.7.1",
+    "python3-discogs-client>=2.7",
+]
+watch = [
+    "watchdog>=3.0.0",
+]
+all = [
+    "cratedigger[streaming,fingerprint,discovery,watch]",
+]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.3.0",
+    "mypy>=1.8.0",
+]
+
+[project.scripts]
+cratedigger = "cratedigger.cli:main"
+
+[project.urls]
+Repository = "https://github.com/ericandriol-glitch/dj-cratedigger"
+
+[tool.setuptools.packages.find]
+include = ["cratedigger*"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
