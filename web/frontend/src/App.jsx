@@ -316,17 +316,35 @@ export default function App() {
     });
   }, [tab]);
 
-  // Cmd+K / Ctrl+K to open command palette
+  // Keyboard shortcuts
   useEffect(() => {
     const handler = (e) => {
+      // Don't fire when typing in inputs
+      const tag = e.target.tagName;
+      const isInput = tag === "INPUT" || tag === "TEXTAREA" || e.target.isContentEditable;
+
+      // Cmd+K / Ctrl+K — command palette (always works)
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         setCmdOpen(o => !o);
+        return;
       }
+
+      // Skip other shortcuts when typing
+      if (isInput || cmdOpen) return;
+
+      // Number keys 1-4 for tab switching
+      if (e.key === "1") { e.preventDefault(); navigate("home"); }
+      if (e.key === "2") { e.preventDefault(); navigate("library"); }
+      if (e.key === "3") { e.preventDefault(); navigate("discover"); }
+      if (e.key === "4") { e.preventDefault(); navigate("enrich"); }
+
+      // / to open search (jumps to Library)
+      if (e.key === "/") { e.preventDefault(); navigate("library"); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [cmdOpen, navigate]);
 
   // Enhanced navigation — accepts optional params (e.g. { filter: "missing", search: "bicep" })
   const navigate = useCallback((targetTab, params = {}) => {
