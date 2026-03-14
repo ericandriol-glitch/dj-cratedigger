@@ -9,7 +9,7 @@ from rich.console import Console
 from rich.table import Table
 
 from cratedigger.metadata import read_metadata
-from cratedigger.utils.db import get_connection
+from cratedigger.utils.db import get_connection, update_genres
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -59,6 +59,7 @@ def plan_enrichment(
     conn.close()
 
     actions: list[EnrichAction] = []
+    genre_updates: dict[str, str] = {}
 
     for filepath in audio_files:
         fp_str = str(filepath)
@@ -67,6 +68,10 @@ def plan_enrichment(
 
         analysis = analysis_map[fp_str]
         meta = read_metadata(filepath)
+
+        # Opportunistically store genre from file tags into the DB
+        if meta.genre:
+            genre_updates[fp_str] = meta.genre
 
         # BPM: fill gap or overwrite if forced
         if analysis["bpm"] is not None:
@@ -97,6 +102,15 @@ def plan_enrichment(
                     new_value=analysis["key"],
                     confidence=analysis["key_confidence"],
                 ))
+
+    # Store any genre tags found in files into the DB
+    if genre_updates:
+        try:
+            update_conn = get_connection(db_path)
+            update_genres(update_conn, genre_updates)
+            update_conn.close()
+        except Exception:
+            pass  # Non-fatal — genre storage is opportunistic
 
     return actions
 

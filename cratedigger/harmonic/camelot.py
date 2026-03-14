@@ -64,6 +64,7 @@ def compatibility_score(key_a: str, key_b: str) -> float:
         return 0.9
 
     dist = camelot_distance(key_a, key_b)
+    raw_diff = abs(num_a - num_b)
 
     # Adjacent (±1 on wheel), same inner/outer
     if dist == 1 and letter_a == letter_b:
@@ -73,8 +74,8 @@ def compatibility_score(key_a: str, key_b: str) -> float:
     if dist == 1 and letter_a != letter_b:
         return 0.85
 
-    # Energy boost (+7 on wheel, same letter)
-    if dist == 7 and letter_a == letter_b:
+    # Energy boost (+7 on wheel, same letter) — use raw diff, not shortest path
+    if raw_diff == 7 and letter_a == letter_b:
         return 0.8
 
     # Two steps away, same letter

@@ -215,6 +215,36 @@ def lookup_genre(artist: str, title: str, rate_limit: float = 1.0) -> GenreLooku
     return result
 
 
+def store_genre_results(
+    lookups: list[tuple[str, GenreLookup]],
+    db_path: Optional["Path"] = None,
+) -> int:
+    """Store genre results from MusicBrainz lookups into the database.
+
+    Only updates rows that already exist in audio_analysis (i.e., tracks
+    that have been scanned). Tracks not in the DB are silently skipped.
+
+    Args:
+        lookups: List of (filepath_str, GenreLookup) with genre results.
+        db_path: SQLite database path. Uses default if None.
+
+    Returns:
+        Number of rows updated.
+    """
+    from pathlib import Path as _Path
+
+    from cratedigger.utils.db import get_connection, update_genres
+
+    genres = {fp: result.genre for fp, result in lookups if result.genre}
+    if not genres:
+        return 0
+
+    conn = get_connection(db_path if db_path is None else _Path(db_path) if isinstance(db_path, str) else db_path)
+    updated = update_genres(conn, genres)
+    conn.close()
+    return updated
+
+
 def clear_cache():
     """Clear the artist lookup cache."""
     _artist_cache.clear()

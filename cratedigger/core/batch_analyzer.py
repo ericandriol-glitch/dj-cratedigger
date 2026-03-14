@@ -16,6 +16,7 @@ from rich.progress import (
 )
 
 from cratedigger.core.analyzer import AudioFeatures, analyze_track
+from cratedigger.metadata import read_metadata
 from cratedigger.utils.db import get_analyzed_paths, get_connection, store_results
 
 logger = logging.getLogger(__name__)
@@ -81,6 +82,7 @@ def batch_analyze(
     analyzed = 0
     failed = 0
     buffer: list[tuple[str, AudioFeatures]] = []
+    genre_buffer: dict[str, str] = {}
     start = time.perf_counter()
 
     with Progress(
@@ -102,18 +104,28 @@ def batch_analyze(
             else:
                 failed += 1
 
-            buffer.append((str(filepath), features))
+            fp_str = str(filepath)
+            buffer.append((fp_str, features))
+
+            # Read genre from file tags (lightweight metadata read)
+            try:
+                meta = read_metadata(filepath)
+                if meta.genre:
+                    genre_buffer[fp_str] = meta.genre
+            except Exception:
+                pass  # Non-fatal — genre is a bonus
 
             # Commit every BATCH_COMMIT_SIZE tracks
             if len(buffer) >= BATCH_COMMIT_SIZE:
-                store_results(conn, buffer)
+                store_results(conn, buffer, genre_buffer)
                 buffer.clear()
+                genre_buffer.clear()
 
             progress.advance(task)
 
     # Flush remaining buffer
     if buffer:
-        store_results(conn, buffer)
+        store_results(conn, buffer, genre_buffer)
 
     duration = time.perf_counter() - start
     conn.close()
