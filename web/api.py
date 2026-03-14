@@ -228,10 +228,12 @@ def library_tracks(
     # Get total for this filter + search
     total = conn.execute(f"SELECT COUNT(*) FROM audio_analysis {where}", params).fetchone()[0]
 
+    # Push NULLs to the bottom regardless of sort direction
+    null_order = "LAST" if sort_col != "filepath" else "FIRST"
     rows = conn.execute(
         f"SELECT filepath, bpm, key_camelot, energy, genre "
         f"FROM audio_analysis {where} "
-        f"ORDER BY {sort_col} {sort_dir} LIMIT ? OFFSET ?",
+        f"ORDER BY {sort_col} IS NULL, {sort_col} {sort_dir} LIMIT ? OFFSET ?",
         params + [limit, offset],
     ).fetchall()
     conn.close()

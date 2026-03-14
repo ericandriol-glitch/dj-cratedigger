@@ -39,6 +39,22 @@ export default function Library({ onNavigate, navParams = {} }) {
     return () => clearTimeout(searchTimer.current);
   }, [search]);
 
+  // Reset page when filter/search/sort changes
+  const prevFilter = useRef(filter);
+  const prevSearch = useRef(searchDebounced);
+  const prevSort = useRef(sort);
+  const prevOrder = useRef(order);
+  useEffect(() => {
+    if (filter !== prevFilter.current || searchDebounced !== prevSearch.current ||
+        sort !== prevSort.current || order !== prevOrder.current) {
+      setPage(0);
+      prevFilter.current = filter;
+      prevSearch.current = searchDebounced;
+      prevSort.current = sort;
+      prevOrder.current = order;
+    }
+  }, [filter, searchDebounced, sort, order]);
+
   // Fetch tracks from API with server-side search + sort
   useEffect(() => {
     setLoading(true);
@@ -57,15 +73,13 @@ export default function Library({ onNavigate, navParams = {} }) {
         setTracks(data.tracks || []);
         setTotal(data.total || 0);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error("Track fetch failed:", err);
         setTracks([]);
         setTotal(0);
       })
       .finally(() => setLoading(false));
   }, [filter, page, searchDebounced, sort, order]);
-
-  // Reset page when filter/search/sort changes
-  useEffect(() => { setPage(0); }, [filter, searchDebounced, sort, order]);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
