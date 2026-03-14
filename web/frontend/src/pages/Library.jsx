@@ -12,10 +12,16 @@ const SORT_OPTIONS = [
   { key: "genre", label: "Genre" },
 ];
 
-export default function Library({ onNavigate }) {
+export default function Library({ onNavigate, navParams = {} }) {
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [searchDebounced, setSearchDebounced] = useState("");
+
+  // Apply navigation params from other pages (e.g. IssueRow click)
+  useEffect(() => {
+    if (navParams.filter) setFilter(navParams.filter);
+    if (navParams.search) { setSearch(navParams.search); setSearchDebounced(navParams.search); }
+  }, [navParams.filter, navParams.search]);
   const [sort, setSort] = useState("filepath");
   const [order, setOrder] = useState("asc");
   const [page, setPage] = useState(0);

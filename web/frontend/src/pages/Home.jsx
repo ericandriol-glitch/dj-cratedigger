@@ -126,9 +126,12 @@ export default function Home({ onNavigate }) {
                 </div>
               </Card>
               <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 7 }}>
-                <IssueRow icon={AudioLines} label="Missing BPM" value={issues.missing_bpm || 0} color={P.warning} />
-                <IssueRow icon={Hash} label="No Key" value={issues.missing_key || 0} color={P.terracotta} />
-                <IssueRow icon={Tag} label="No Genre" value={issues.missing_genre || 0} color={P.azure} />
+                <IssueRow icon={AudioLines} label="Missing BPM" value={issues.missing_bpm || 0} color={P.warning}
+                  onClick={() => onNavigate?.("library", { filter: "missing" })} />
+                <IssueRow icon={Hash} label="No Key" value={issues.missing_key || 0} color={P.terracotta}
+                  onClick={() => onNavigate?.("library", { filter: "partial" })} />
+                <IssueRow icon={Tag} label="No Genre" value={issues.missing_genre || 0} color={P.azure}
+                  onClick={() => onNavigate?.("library", { filter: "partial" })} />
               </div>
             </div>
 
@@ -182,8 +185,9 @@ export default function Home({ onNavigate }) {
                       padding: "6px 14px", borderRadius: 8,
                       background: `${P.terracotta}08`, border: `1px solid ${P.terracotta}15`,
                       transition: "all 0.15s ease",
-                      onClick={() => onNavigate?.("library")}
-                    }}>
+                    }}
+                    onClick={() => onNavigate?.("library")}
+                  >
                       View all {trackTotal.toLocaleString()} tracks <ArrowUpRight size={12} strokeWidth={2.5} />
                     </span>
                   </div>

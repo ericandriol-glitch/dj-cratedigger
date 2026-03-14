@@ -66,12 +66,14 @@ export function CBar({ label, value, max, color, icon: Icon }) {
 }
 
 /* ─── Issue Row ─── */
-export function IssueRow({ icon: Icon, label, value, color }) {
+export function IssueRow({ icon: Icon, label, value, color, onClick }) {
   return (
-    <div className="issue-row" style={{
+    <div className="issue-row" onClick={onClick} style={{
       display: "flex", alignItems: "center", gap: 10,
       background: P.bgCard, border: `1px solid ${P.borderSub}`,
       borderRadius: 10, padding: "10px 12px",
+      cursor: onClick ? "pointer" : "default",
+      transition: "all 0.15s ease",
     }}>
       <div style={{
         width: 32, height: 32, borderRadius: 8,
@@ -82,6 +84,7 @@ export function IssueRow({ icon: Icon, label, value, color }) {
       </div>
       <span style={{ flex: 1, fontSize: 12, fontFamily: F.b, color: P.textSec }}>{label}</span>
       <span style={{ fontSize: 18, fontWeight: 800, fontFamily: F.d, color, letterSpacing: -0.5 }}>{value}</span>
+      {onClick && <ChevronRight size={12} color={P.textMut} style={{ flexShrink: 0 }} />}
     </div>
   );
 }
