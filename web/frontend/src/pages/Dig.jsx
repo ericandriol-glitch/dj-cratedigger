@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { P, F, genreColor } from "../theme";
 import { Sec, Loader, Pill } from "../components/ui";
-import { fetchApi } from "../hooks/useApi";
+import { fetchApi, API } from "../hooks/useApi";
 import {
   Compass, Search, Disc3, Users, Globe, Music,
   MapPin, ExternalLink, ChevronDown, ChevronUp,
-  CircleCheck, AlertTriangle, CircleX, Ticket,
+  CircleCheck, AlertTriangle, CircleX, Ticket, X,
+  User, Flame, TrendingUp,
 } from "lucide-react";
 
 /* ─── Label Research View ─── */
@@ -15,20 +16,62 @@ function LabelResearch() {
   const [report, setReport] = useState(null);
   const [error, setError] = useState(null);
   const [expandedLabel, setExpandedLabel] = useState(null);
+  const [elapsed, setElapsed] = useState(0);
+  const abortRef = useRef(null);
+  const timerRef = useRef(null);
+
+  // Cleanup timer on unmount (but don't abort — request survives tab switches)
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
+  const cancel = () => {
+    if (abortRef.current) abortRef.current.abort();
+    if (timerRef.current) clearInterval(timerRef.current);
+    setLoading(false);
+    setElapsed(0);
+  };
 
   const search = async () => {
-    if (!query.trim()) return;
+    if (!query.trim() || loading) return;
+    // Cancel any previous request
+    if (abortRef.current) abortRef.current.abort();
+    if (timerRef.current) clearInterval(timerRef.current);
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setLoading(true);
     setError(null);
     setReport(null);
+    setElapsed(0);
+
+    // Elapsed timer
+    const start = Date.now();
+    timerRef.current = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000);
+
     try {
-      const data = await fetchApi(`/api/dig/label?artist=${encodeURIComponent(query.trim())}`);
+      // Uses API from useApi hook
+      const r = await fetch(`${API}/api/dig/label?artist=${encodeURIComponent(query.trim())}`, {
+        signal: controller.signal,
+      });
+      if (!r.ok) throw new Error(`${r.status}`);
+      const data = await r.json();
       setReport(data.report);
-      if (!data.report) setError("No results found");
+      if (!data.report) setError("No results found for this artist");
     } catch (e) {
-      setError("Search failed — is the API running?");
+      if (e.name === "AbortError") {
+        // User cancelled — don't show error
+      } else {
+        setError("Search failed — check the API is running on port 8000");
+      }
     }
+    clearInterval(timerRef.current);
+    timerRef.current = null;
     setLoading(false);
+    setElapsed(0);
   };
 
   return (
@@ -49,18 +92,42 @@ function LabelResearch() {
             outline: "none",
           }}
         />
-        <button onClick={search} disabled={loading} style={{
-          padding: "10px 18px", borderRadius: 10, border: "none",
-          background: P.terracotta, color: "#fff", fontFamily: F.d,
-          fontSize: 12, fontWeight: 700, cursor: "pointer",
-          opacity: loading ? 0.6 : 1, display: "flex", alignItems: "center", gap: 5,
-        }}>
+        <button
+          onClick={search}
+          disabled={loading || !query.trim()}
+          style={{
+            padding: "10px 18px", borderRadius: 10, border: "none",
+            background: (!query.trim() || loading) ? P.bgSurface : P.terracotta,
+            color: (!query.trim() || loading) ? P.textMut : "#fff",
+            fontFamily: F.d, fontSize: 12, fontWeight: 700,
+            cursor: (!query.trim() || loading) ? "not-allowed" : "pointer",
+            display: "flex", alignItems: "center", gap: 5,
+            transition: "all 0.2s ease",
+          }}
+        >
           <Search size={14} strokeWidth={2.5} />
-          Dig
+          {loading ? "Searching..." : "Dig"}
         </button>
       </div>
 
-      {loading && <Loader text="Researching labels..." />}
+      {!loading && !report && !error && (
+        <div style={{ textAlign: "center", padding: "8px 0 16px", fontSize: 11, fontFamily: F.m, color: P.textMut }}>
+          Label research takes ~60-90s due to MusicBrainz rate limits
+        </div>
+      )}
+
+      {loading && (
+        <div style={{ textAlign: "center", padding: "30px 0" }}>
+          <Loader text={`Researching labels... ${elapsed}s`} />
+          <button onClick={cancel} style={{
+            marginTop: 12, padding: "6px 16px", borderRadius: 8, border: `1px solid ${P.border}`,
+            background: P.bgCard, color: P.textSec, fontFamily: F.m, fontSize: 11,
+            cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5,
+          }}>
+            <X size={12} /> Cancel
+          </button>
+        </div>
+      )}
       {error && (
         <div style={{ textAlign: "center", padding: 30, color: P.warning, fontFamily: F.m, fontSize: 12 }}>
           {error}
@@ -250,9 +317,17 @@ function FestivalScanner() {
   const [report, setReport] = useState(null);
   const [error, setError] = useState(null);
   const [tab, setTab] = useState("all");
+  const abortRef = useRef(null);
+
+  // No cleanup abort — request survives tab switches
 
   const scan = async () => {
-    if (!lineup.trim()) return;
+    if (!lineup.trim() || loading) return;
+    if (abortRef.current) abortRef.current.abort();
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setLoading(true);
     setError(null);
     setReport(null);
@@ -261,11 +336,16 @@ function FestivalScanner() {
         lineup: lineup.trim(),
         name: name.trim() || "Festival",
       });
-      const data = await fetchApi(`/api/dig/festival?${params}`);
+      // Uses API from useApi hook
+      const r = await fetch(`${API}/api/dig/festival?${params}`, { signal: controller.signal });
+      if (!r.ok) throw new Error(`${r.status}`);
+      const data = await r.json();
       setReport(data.report);
       if (!data.report) setError("No results");
     } catch (e) {
-      setError("Scan failed — is the API running?");
+      if (e.name !== "AbortError") {
+        setError("Scan failed — check the API is running on port 8000");
+      }
     }
     setLoading(false);
   };
@@ -307,16 +387,28 @@ function FestivalScanner() {
           resize: "vertical",
         }}
       />
-      <button onClick={scan} disabled={loading} style={{
-        width: "100%", padding: "12px", borderRadius: 10, border: "none",
-        background: P.terracotta, color: "#fff", fontFamily: F.d,
-        fontSize: 13, fontWeight: 700, cursor: "pointer",
-        opacity: loading ? 0.6 : 1, display: "flex", alignItems: "center",
-        justifyContent: "center", gap: 6, marginBottom: 20,
-      }}>
+      <button
+        onClick={scan}
+        disabled={loading || !lineup.trim()}
+        style={{
+          width: "100%", padding: "12px", borderRadius: 10, border: "none",
+          background: (!lineup.trim() || loading) ? P.bgSurface : P.terracotta,
+          color: (!lineup.trim() || loading) ? P.textMut : "#fff",
+          fontFamily: F.d, fontSize: 13, fontWeight: 700,
+          cursor: (!lineup.trim() || loading) ? "not-allowed" : "pointer",
+          display: "flex", alignItems: "center",
+          justifyContent: "center", gap: 6, marginBottom: 6,
+          transition: "all 0.2s ease",
+        }}
+      >
         <Ticket size={15} strokeWidth={2.5} />
-        Scan Lineup
+        {loading ? "Scanning..." : "Scan Lineup"}
       </button>
+      {!lineup.trim() && !report && !loading && (
+        <div style={{ textAlign: "center", marginBottom: 16, fontSize: 11, fontFamily: F.m, color: P.textMut }}>
+          Paste artist names above to get started
+        </div>
+      )}
 
       {loading && <Loader text="Scanning lineup (genre lookups may take a moment)..." />}
       {error && (
@@ -438,9 +530,326 @@ function FestivalScanner() {
 }
 
 
+/* ─── Artist Research View ─── */
+function ArtistResearch() {
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [report, setReport] = useState(null);
+  const [error, setError] = useState(null);
+  const [elapsed, setElapsed] = useState(0);
+  const timerRef = useRef(null);
+
+  useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
+
+  const search = async () => {
+    if (!query.trim() || loading) return;
+    if (timerRef.current) clearInterval(timerRef.current);
+    setLoading(true); setError(null); setReport(null); setElapsed(0);
+    const start = Date.now();
+    timerRef.current = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000);
+    try {
+      const r = await fetch(`${API}/api/dig/artist?name=${encodeURIComponent(query.trim())}`);
+      if (!r.ok) throw new Error(`${r.status}`);
+      const data = await r.json();
+      setReport(data.report);
+      if (!data.report) setError("No results found");
+    } catch (e) {
+      setError("Search failed — check the API is running");
+    }
+    clearInterval(timerRef.current); timerRef.current = null;
+    setLoading(false); setElapsed(0);
+  };
+
+  const sp = report?.spotify_status;
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+        <input value={query} onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && search()}
+          placeholder="Artist name..."
+          style={{ flex: 1, padding: "10px 14px", borderRadius: 10, background: P.bgCard, border: `1px solid ${P.border}`, color: P.text, fontFamily: F.b, fontSize: 14, outline: "none" }}
+        />
+        <button onClick={search} disabled={loading || !query.trim()} style={{
+          padding: "10px 18px", borderRadius: 10, border: "none",
+          background: (!query.trim() || loading) ? P.bgSurface : P.terracotta,
+          color: (!query.trim() || loading) ? P.textMut : "#fff",
+          fontFamily: F.d, fontSize: 12, fontWeight: 700,
+          cursor: (!query.trim() || loading) ? "not-allowed" : "pointer",
+          display: "flex", alignItems: "center", gap: 5, transition: "all 0.2s ease",
+        }}>
+          <Search size={14} strokeWidth={2.5} />
+          {loading ? "Searching..." : "Research"}
+        </button>
+      </div>
+
+      {loading && <Loader text={`Researching artist... ${elapsed}s`} />}
+      {error && <div style={{ textAlign: "center", padding: 30, color: P.warning, fontFamily: F.m, fontSize: 12 }}>{error}</div>}
+
+      {report && (
+        <>
+          {/* Artist header */}
+          <div style={{ background: P.bgCard, border: `1px solid ${P.border}`, borderRadius: 14, padding: 16, marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: `${P.azure}15`, border: `1px solid ${P.azure}25`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <User size={18} color={P.azure} />
+              </div>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700, fontFamily: F.d, color: P.cream }}>
+                  {report.name}
+                  {report.country && <span style={{ fontSize: 12, color: P.textMut, marginLeft: 8 }}>({report.country})</span>}
+                </div>
+                {report.disambiguation && <div style={{ fontSize: 11, fontFamily: F.m, color: P.textSec }}>{report.disambiguation}</div>}
+              </div>
+            </div>
+            {report.aliases?.length > 0 && <div style={{ fontSize: 11, fontFamily: F.m, color: P.textMut }}>aka {report.aliases.slice(0, 4).join(", ")}</div>}
+            {report.genres?.length > 0 && (
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 8 }}>
+                {report.genres.map((g, i) => (
+                  <span key={i} style={{ fontSize: 10, fontFamily: F.m, padding: "2px 8px", borderRadius: 5, background: `${genreColor(i)}12`, border: `1px solid ${genreColor(i)}20`, color: genreColor(i) }}>{g}</span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Your relationship */}
+          <Sec label="Your Relationship" icon={Users} />
+          <div style={{ background: P.bgCard, border: `1px solid ${P.border}`, borderRadius: 14, padding: 16, marginBottom: 16 }}>
+            <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 24, fontWeight: 800, fontFamily: F.d, color: report.library_tracks?.length > 0 ? P.healthy : P.critical, lineHeight: 1 }}>{report.library_tracks?.length || 0}</div>
+                <div style={{ fontSize: 8, fontFamily: F.m, color: P.textMut, letterSpacing: 0.8, marginTop: 3 }}>IN LIBRARY</div>
+              </div>
+              {sp && sp.connected && (
+                <>
+                  {sp.in_top_short && <div style={{ textAlign: "center" }}><div style={{ fontSize: 16, color: P.healthy, fontWeight: 700, fontFamily: F.d }}>Top</div><div style={{ fontSize: 8, fontFamily: F.m, color: P.textMut }}>4 WEEKS</div></div>}
+                  {sp.followed && <div style={{ textAlign: "center" }}><div style={{ fontSize: 16, color: P.healthy, fontWeight: 700, fontFamily: F.d }}>Yes</div><div style={{ fontSize: 8, fontFamily: F.m, color: P.textMut }}>FOLLOWING</div></div>}
+                  {sp.saved_track_count > 0 && <div style={{ textAlign: "center" }}><div style={{ fontSize: 16, color: P.lime, fontWeight: 700, fontFamily: F.d }}>{sp.saved_track_count}</div><div style={{ fontSize: 8, fontFamily: F.m, color: P.textMut }}>SAVED</div></div>}
+                </>
+              )}
+            </div>
+            {report.library_tracks?.length > 0 && (
+              <div style={{ marginTop: 10 }}>
+                {report.library_tracks.slice(0, 5).map((t, i) => (
+                  <div key={i} style={{ fontSize: 11, fontFamily: F.m, color: P.textSec, padding: "2px 0" }}>{t}</div>
+                ))}
+                {report.library_tracks.length > 5 && <div style={{ fontSize: 10, fontFamily: F.m, color: P.textMut }}>+ {report.library_tracks.length - 5} more</div>}
+              </div>
+            )}
+          </div>
+
+          {/* Labels */}
+          {report.labels?.length > 0 && (
+            <>
+              <Sec label={`Labels (${report.labels.length})`} icon={Globe} />
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
+                {report.labels.map((lb, i) => (
+                  <span key={i} style={{ fontSize: 11, fontFamily: F.b, color: P.text, padding: "4px 10px", borderRadius: 6, background: P.bgCard, border: `1px solid ${P.border}` }}>{lb}</span>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Discography */}
+          {report.releases?.length > 0 && (
+            <>
+              <Sec label={`Discography (${report.releases.length})`} icon={Disc3} />
+              <div style={{ background: P.bgCard, border: `1px solid ${P.border}`, borderRadius: 14, padding: "12px 14px", marginBottom: 16 }}>
+                {report.releases.slice(0, 12).map((r, i) => (
+                  <div key={i} style={{ display: "flex", gap: 10, padding: "8px 0", borderBottom: i < 11 ? `1px solid ${P.borderSub}` : "none", alignItems: "center" }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontFamily: F.b, fontWeight: 600, color: P.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.title}</div>
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <div style={{ fontSize: 10, fontFamily: F.m, color: P.textMut }}>{r.date || "?"}</div>
+                      <span style={{ fontSize: 9, fontFamily: F.m, color: P.azure, padding: "1px 6px", background: `${P.azure}10`, borderRadius: 4 }}>{r.type}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Links */}
+          {report.urls?.length > 0 && (
+            <>
+              <Sec label="Links" icon={ExternalLink} />
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
+                {report.urls.slice(0, 8).map((u, i) => (
+                  <a key={i} href={u.url} target="_blank" rel="noopener noreferrer" style={{
+                    fontSize: 10, fontFamily: F.m, color: P.azure, padding: "3px 8px", borderRadius: 5,
+                    background: `${P.azure}08`, border: `1px solid ${P.azure}15`, textDecoration: "none",
+                    display: "inline-flex", alignItems: "center", gap: 3,
+                  }}>
+                    <ExternalLink size={8} /> {u.type}
+                  </a>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Related */}
+          {report.related_artists?.length > 0 && (
+            <>
+              <Sec label="Related Artists" icon={Users} />
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 16 }}>
+                {report.related_artists.slice(0, 12).map((a, i) => (
+                  <span key={i} style={{ fontSize: 11, fontFamily: F.b, color: P.textSec, padding: "3px 8px", borderRadius: 6, background: P.bgSurface, border: `1px solid ${P.borderSub}` }}>
+                    {a.name} <span style={{ fontSize: 9, color: P.textMut }}>{a.relationship}</span>
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+
+/* ─── Weekly Dig View ─── */
+function WeeklyDigView() {
+  const [loading, setLoading] = useState(false);
+  const [report, setReport] = useState(null);
+  const [error, setError] = useState(null);
+  const [genres, setGenres] = useState("");
+
+  const scan = async () => {
+    setLoading(true); setError(null); setReport(null);
+    try {
+      const params = genres.trim() ? `?genres=${encodeURIComponent(genres.trim())}` : "";
+      const r = await fetch(`${API}/api/dig/weekly${params}`);
+      if (!r.ok) throw new Error(`${r.status}`);
+      const data = await r.json();
+      setReport(data.report);
+    } catch (e) {
+      setError("Scan failed — check the API is running");
+    }
+    setLoading(false);
+  };
+
+  const hot = report?.releases?.filter(r => r.relevance_score > 0.3) || [];
+  const others = report?.releases?.filter(r => r.relevance_score <= 0.3) || [];
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+        <input value={genres} onChange={(e) => setGenres(e.target.value)}
+          placeholder="Genres (optional, e.g. Tech House, Deep House)..."
+          style={{ flex: 1, padding: "10px 14px", borderRadius: 10, background: P.bgCard, border: `1px solid ${P.border}`, color: P.text, fontFamily: F.b, fontSize: 14, outline: "none" }}
+        />
+        <button onClick={scan} disabled={loading} style={{
+          padding: "10px 18px", borderRadius: 10, border: "none",
+          background: loading ? P.bgSurface : P.lime, color: loading ? P.textMut : P.bg,
+          fontFamily: F.d, fontSize: 12, fontWeight: 700,
+          cursor: loading ? "not-allowed" : "pointer",
+          display: "flex", alignItems: "center", gap: 5, transition: "all 0.2s ease",
+        }}>
+          <TrendingUp size={14} strokeWidth={2.5} />
+          {loading ? "Scanning..." : "Dig"}
+        </button>
+      </div>
+
+      {!loading && !report && !error && (
+        <div style={{ textAlign: "center", padding: "8px 0 16px", fontSize: 11, fontFamily: F.m, color: P.textMut }}>
+          Leave genres blank to use your DJ profile. Scans Beatport for new releases.
+        </div>
+      )}
+
+      {loading && <Loader text="Scanning new releases..." />}
+      {error && <div style={{ textAlign: "center", padding: 30, color: P.warning, fontFamily: F.m, fontSize: 12 }}>{error}</div>}
+
+      {report && (
+        <>
+          {/* Summary */}
+          <div style={{ background: P.bgCard, border: `1px solid ${P.border}`, borderRadius: 14, padding: 16, marginBottom: 16 }}>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 20, fontWeight: 800, fontFamily: F.d, color: P.cream, lineHeight: 1 }}>{report.total_found}</div>
+                <div style={{ fontSize: 8, fontFamily: F.m, color: P.textMut, letterSpacing: 0.8, marginTop: 3 }}>FOUND</div>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 20, fontWeight: 800, fontFamily: F.d, color: P.lime, lineHeight: 1 }}>{report.after_filter}</div>
+                <div style={{ fontSize: 8, fontFamily: F.m, color: P.textMut, letterSpacing: 0.8, marginTop: 3 }}>NEW</div>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 20, fontWeight: 800, fontFamily: F.d, color: P.terracotta, lineHeight: 1 }}>{hot.length}</div>
+                <div style={{ fontSize: 8, fontFamily: F.m, color: P.textMut, letterSpacing: 0.8, marginTop: 3 }}>HOT</div>
+              </div>
+            </div>
+            {report.genres_scanned?.length > 0 && (
+              <div style={{ fontSize: 11, fontFamily: F.m, color: P.textSec }}>
+                Scanned: {report.genres_scanned.join(", ")}
+              </div>
+            )}
+          </div>
+
+          {/* Hot picks */}
+          {hot.length > 0 && (
+            <>
+              <Sec label={`Hot Picks (${hot.length})`} icon={Flame} />
+              <div style={{ background: P.bgCard, border: `1px solid ${P.border}`, borderRadius: 14, padding: "10px 14px", marginBottom: 16 }}>
+                {hot.slice(0, 15).map((r, i) => (
+                  <div key={i} style={{ display: "flex", gap: 10, padding: "10px 0", borderBottom: i < hot.length - 1 ? `1px solid ${P.borderSub}` : "none", alignItems: "center" }}>
+                    <div style={{ width: 32, textAlign: "center", fontSize: 12, fontWeight: 700, fontFamily: F.d, color: P.terracotta }}>{r.relevance_score.toFixed(1)}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontFamily: F.b, fontWeight: 600, color: P.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.artist || "?"} — {r.title}</div>
+                      <div style={{ fontSize: 11, fontFamily: F.m, color: P.textSec }}>
+                        {r.genre}{r.label ? ` · ${r.label}` : ""}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
+                      {r.artist_in_library && <span style={{ fontSize: 8, fontFamily: F.m, color: P.healthy, padding: "1px 5px", background: `${P.healthy}10`, borderRadius: 3 }}>LIB</span>}
+                      {r.artist_in_streaming && <span style={{ fontSize: 8, fontFamily: F.m, color: P.azure, padding: "1px 5px", background: `${P.azure}10`, borderRadius: 3 }}>STREAM</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Others */}
+          {others.length > 0 && (
+            <>
+              <Sec label={`Other Releases (${others.length})`} icon={Music} />
+              <div style={{ background: P.bgCard, border: `1px solid ${P.border}`, borderRadius: 14, padding: "10px 14px" }}>
+                {others.slice(0, 15).map((r, i) => (
+                  <div key={i} style={{ display: "flex", gap: 10, padding: "8px 0", borderBottom: i < Math.min(others.length, 15) - 1 ? `1px solid ${P.borderSub}` : "none" }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontFamily: F.b, color: P.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.artist || "?"} — {r.title}</div>
+                      <div style={{ fontSize: 10, fontFamily: F.m, color: P.textMut }}>{r.genre}</div>
+                    </div>
+                  </div>
+                ))}
+                {others.length > 15 && <div style={{ textAlign: "center", padding: "8px 0", fontSize: 10, fontFamily: F.m, color: P.textMut }}>+ {others.length - 15} more</div>}
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+
 /* ─── Main Dig Page ─── */
 export default function Dig() {
   const [mode, setMode] = useState("label");
+
+  const MODES = [
+    { id: "label", label: "Labels", icon: Disc3 },
+    { id: "artist", label: "Artist", icon: User },
+    { id: "festival", label: "Festival", icon: Ticket },
+    { id: "weekly", label: "New Releases", icon: TrendingUp },
+  ];
+
+  const pages = {
+    label: <LabelResearch />,
+    artist: <ArtistResearch />,
+    festival: <FestivalScanner />,
+    weekly: <WeeklyDigView />,
+  };
 
   return (
     <div style={{ padding: "20px" }}>
@@ -455,7 +864,7 @@ export default function Dig() {
         </div>
         <div>
           <div style={{ fontSize: 16, fontWeight: 700, fontFamily: F.d, color: P.cream }}>Dig Deeper</div>
-          <div style={{ fontSize: 11, fontFamily: F.m, color: P.textMut }}>Research artists, labels & festivals</div>
+          <div style={{ fontSize: 11, fontFamily: F.m, color: P.textMut }}>Research artists, labels, festivals & new releases</div>
         </div>
       </div>
 
@@ -465,17 +874,14 @@ export default function Dig() {
         background: P.bgCard, borderRadius: 10, border: `1px solid ${P.border}`,
         overflow: "hidden",
       }}>
-        {[
-          { id: "label", label: "Label Research", icon: Disc3 },
-          { id: "festival", label: "Festival Scanner", icon: Ticket },
-        ].map(({ id, label, icon: Icon }) => (
+        {MODES.map(({ id, label, icon: Icon }) => (
           <button key={id} onClick={() => setMode(id)} style={{
-            flex: 1, padding: "10px 12px", border: "none",
+            flex: 1, padding: "10px 8px", border: "none",
             background: mode === id ? `${P.terracotta}15` : "transparent",
             color: mode === id ? P.terracotta : P.textMut,
-            fontFamily: F.m, fontSize: 11, letterSpacing: 0.3,
+            fontFamily: F.m, fontSize: 10, letterSpacing: 0.3,
             cursor: "pointer", display: "flex", alignItems: "center",
-            justifyContent: "center", gap: 6,
+            justifyContent: "center", gap: 5,
             borderBottom: mode === id ? `2px solid ${P.terracotta}` : "2px solid transparent",
             transition: "all 0.2s ease",
           }}>
@@ -485,7 +891,7 @@ export default function Dig() {
         ))}
       </div>
 
-      {mode === "label" ? <LabelResearch /> : <FestivalScanner />}
+      {pages[mode]}
     </div>
   );
 }

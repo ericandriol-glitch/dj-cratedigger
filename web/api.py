@@ -24,6 +24,61 @@ app.add_middleware(
 )
 
 
+# ── Scan ───────────────────────────────────────────────────
+
+
+@app.post("/api/scan")
+def scan_library(path: str = Query(...)):
+    """Scan a folder and populate the DB with metadata (no Essentia needed).
+
+    Reads artist, title, BPM, key, genre from file tags via mutagen.
+    """
+    from cratedigger.scanner import find_audio_files
+    from cratedigger.metadata import read_metadata
+    from cratedigger.utils.db import get_connection
+
+    scan_path = Path(path)
+    if not scan_path.exists():
+        return {"error": f"Path not found: {path}", "scanned": 0}
+
+    audio_files = find_audio_files(scan_path)
+    if not audio_files:
+        return {"error": "No audio files found", "scanned": 0}
+
+    conn = get_connection()
+    # Ensure genre column exists
+    try:
+        conn.execute("ALTER TABLE audio_analysis ADD COLUMN genre TEXT")
+    except Exception:
+        pass  # column already exists
+
+    inserted = 0
+    for fp in audio_files:
+        meta = read_metadata(fp)
+        filepath = str(fp)
+
+        # Parse BPM as float if tagged
+        bpm = None
+        if meta.bpm:
+            try:
+                bpm = float(str(meta.bpm).split(".")[0])
+            except (ValueError, TypeError):
+                pass
+
+        conn.execute(
+            "INSERT OR IGNORE INTO audio_analysis "
+            "(filepath, bpm, key_camelot, genre, analyzed_at, analyzer_version) "
+            "VALUES (?, ?, ?, ?, datetime('now'), 'metadata-scan')",
+            (filepath, bpm, meta.key, meta.genre),
+        )
+        inserted += 1
+
+    conn.commit()
+    conn.close()
+
+    return {"scanned": inserted, "total_files": len(audio_files), "path": str(scan_path)}
+
+
 # ── Library Stats ──────────────────────────────────────────
 
 
@@ -332,6 +387,99 @@ def dig_festival(lineup: str = Query(...), name: str = Query("Festival")):
                     "genre_match": a.genre_match,
                 }
                 for a in report.artists
+            ],
+        }
+    }
+
+
+# ── Artist Research ────────────────────────────────────────
+
+
+@app.get("/api/dig/artist")
+def dig_artist(name: str = Query(...)):
+    """Research an artist across MusicBrainz, library, and streaming."""
+    from cratedigger.digger.artist_research import research_artist
+
+    # Patch Rich console for server context
+    import cratedigger.digger.artist_research as _art_mod
+    from rich.console import Console
+    _null = Console(file=io.StringIO(), force_terminal=False)
+    _orig = _art_mod.console
+    _art_mod.console = _null
+    try:
+        report = research_artist(name, include_discogs=True, include_spotify=True)
+    finally:
+        _art_mod.console = _orig
+
+    if not report:
+        return {"report": None}
+
+    return {
+        "report": {
+            "name": report.name,
+            "mbid": report.mbid,
+            "country": report.country,
+            "disambiguation": report.disambiguation,
+            "aliases": report.aliases,
+            "genres": report.genres,
+            "urls": report.urls,
+            "releases": [
+                {
+                    "title": r.get("title", ""),
+                    "type": r.get("type", ""),
+                    "date": r.get("date", ""),
+                }
+                for r in report.releases[:20]
+            ],
+            "labels": report.labels,
+            "related_artists": report.related_artists[:15],
+            "library_tracks": report.library_tracks,
+            "spotify_status": report.spotify_status,
+            "discogs_releases": report.discogs_releases[:15],
+        }
+    }
+
+
+# ── Weekly Dig ─────────────────────────────────────────────
+
+
+@app.get("/api/dig/weekly")
+def dig_weekly(genres: str = Query(None)):
+    """Scan new releases matching DJ profile."""
+    from cratedigger.digger.weekly_dig import scan_new_releases
+
+    # Patch Rich console for server context
+    import cratedigger.digger.weekly_dig as _dig_mod
+    from rich.console import Console
+    _null = Console(file=io.StringIO(), force_terminal=False)
+    _orig = _dig_mod.console
+    _dig_mod.console = _null
+    try:
+        genre_list = [g.strip() for g in genres.split(",")] if genres else None
+        report = scan_new_releases(genres=genre_list)
+    finally:
+        _dig_mod.console = _orig
+
+    return {
+        "report": {
+            "genres_scanned": report.genres_scanned,
+            "total_found": report.total_found,
+            "after_filter": report.after_filter,
+            "profile_genres": report.profile_genres,
+            "profile_bpm_range": report.profile_bpm_range,
+            "releases": [
+                {
+                    "title": r.title,
+                    "artist": r.artist,
+                    "label": r.label,
+                    "genre": r.genre,
+                    "url": r.url,
+                    "relevance_score": r.relevance_score,
+                    "artist_in_library": r.artist_in_library,
+                    "artist_in_streaming": r.artist_in_streaming,
+                    "in_library": r.in_library,
+                }
+                for r in report.releases[:50]
             ],
         }
     }
