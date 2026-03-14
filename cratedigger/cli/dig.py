@@ -199,11 +199,30 @@ def dig_festival(name: str | None, lineup: str | None, library: str | None, no_g
     # Festival name mode — needs EDMTrain API key
     if name and not lineup:
         console.print(f"\n  [bold magenta]DJ CrateDigger[/bold magenta] — Festival Scanner: [bold]{name}[/bold]\n")
-        console.print("  [yellow]EDMTrain API key not configured.[/yellow]")
-        console.print("  Get a free key at https://edmtrain.com/api and add it to ~/.cratedigger/config.yaml")
-        console.print('\n  For now, paste the lineup manually:')
-        console.print('  cratedigger dig festival --lineup "Artist1, Artist2, Artist3"\n')
-        return
+        try:
+            from ..utils.config import get_config
+            config = get_config()
+            edmtrain_key = config.get("edmtrain", {}).get("api_key")
+        except (FileNotFoundError, ValueError):
+            edmtrain_key = None
+
+        if not edmtrain_key:
+            console.print("  [yellow]EDMTrain API key not configured.[/yellow]")
+            console.print("  Get a free key at https://edmtrain.com/api and add to ~/.cratedigger/config.yaml:")
+            console.print("    edmtrain:")
+            console.print('      api_key: "your-key-here"')
+            console.print('\n  For now, paste the lineup manually:')
+            console.print('  cratedigger dig festival --lineup "Artist1, Artist2, Artist3"\n')
+            return
+
+        # Fetch lineup from EDMTrain API
+        from ..digger.festival import fetch_edmtrain_lineup
+        artists = fetch_edmtrain_lineup(name, edmtrain_key)
+        if not artists:
+            console.print(f"  [yellow]No lineup found for '{name}' on EDMTrain.[/yellow]")
+            console.print('  Try: cratedigger dig festival --lineup "Artist1, Artist2"\n')
+            return
+        lineup = ", ".join(artists)
 
     # Lineup mode
     festival_label = name or "Lineup"

@@ -1,10 +1,15 @@
 """FastAPI backend for CrateDigger web UI."""
 
+import io
+import os
 import sys
 from pathlib import Path
 
 # Ensure cratedigger package is importable
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+# Force UTF-8 output for Rich console in submodules
+os.environ["PYTHONIOENCODING"] = "utf-8"
 
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -234,7 +239,16 @@ def dig_label(artist: str = Query(...)):
     """Research labels for an artist."""
     from cratedigger.digger.label import research_label
 
-    report = research_label(artist, web_search=True)
+    # Patch Rich consoles to write to devnull in server context
+    import cratedigger.digger.label as _label_mod
+    from rich.console import Console
+    _null = Console(file=io.StringIO(), force_terminal=False)
+    _orig = _label_mod.console
+    _label_mod.console = _null
+    try:
+        report = research_label(artist, web_search=True)
+    finally:
+        _label_mod.console = _orig
     if not report:
         return {"report": None}
 
@@ -289,7 +303,16 @@ def dig_festival(lineup: str = Query(...), name: str = Query("Festival")):
     if not artists:
         return {"report": None}
 
-    report = scan_festival(artists, festival_name=name, lookup_genres=True)
+    # Patch Rich console for server context
+    import cratedigger.digger.festival as _fest_mod
+    from rich.console import Console
+    _null = Console(file=io.StringIO(), force_terminal=False)
+    _orig = _fest_mod.console
+    _fest_mod.console = _null
+    try:
+        report = scan_festival(artists, festival_name=name, lookup_genres=True)
+    finally:
+        _fest_mod.console = _orig
 
     return {
         "report": {

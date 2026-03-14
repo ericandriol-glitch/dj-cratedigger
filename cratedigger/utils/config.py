@@ -37,3 +37,7 @@ def get_config(config_path: Path | None = None) -> dict:
     if not isinstance(data, dict):
         raise ValueError(f"Invalid config file: {path} (expected YAML mapping)")
     return data
+
+
+# Alias for convenience
+load_config = get_config

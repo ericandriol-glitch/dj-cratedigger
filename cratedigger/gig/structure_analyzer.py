@@ -2,12 +2,32 @@
 
 Detects intros, breakdowns, drops, and outros by analysing the
 energy envelope of a track against its beat grid.
+
+Thresholds are tuned for electronic music (house, techno, trance)
+where tracks follow a predictable intro → build → drop → breakdown → drop → outro arc.
 """
 
 from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
+
+# --- Tunable thresholds ---
+# These values are calibrated for electronic dance music.
+# Intro/outro: 50% of mean energy (electronic intros are sparse percussion/pads)
+INTRO_OUTRO_THRESHOLD = 0.50
+# Breakdown: energy drops below 35% of mean (breakdowns strip most percussion)
+BREAKDOWN_THRESHOLD = 0.35
+# Drop: energy rises above 75% of mean after a breakdown
+DROP_THRESHOLD = 0.75
+# Minimum breakdown length in beats (most breakdowns are 16+ beats)
+MIN_BREAKDOWN_BEATS = 16
+# Energy envelope window (larger = smoother, less sensitive to transients)
+ENERGY_WINDOW_SEC = 2.0
+# Energy envelope hop (smaller = more resolution)
+ENERGY_HOP_SEC = 0.25
+# Smoothing kernel size (must be odd — larger = more smoothing)
+SMOOTH_WINDOW = 11
 
 
 @dataclass
@@ -26,8 +46,8 @@ class TrackStructure:
 def _compute_energy_envelope(
     audio: np.ndarray,
     sample_rate: float,
-    window_sec: float = 4.0,
-    hop_sec: float = 0.5,
+    window_sec: float = ENERGY_WINDOW_SEC,
+    hop_sec: float = ENERGY_HOP_SEC,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Compute RMS energy envelope with timestamps.
 
@@ -50,7 +70,7 @@ def _compute_energy_envelope(
     return np.array(timestamps), np.array(energies)
 
 
-def _smooth(values: np.ndarray, window: int = 7) -> np.ndarray:
+def _smooth(values: np.ndarray, window: int = SMOOTH_WINDOW) -> np.ndarray:
     """Moving average smoothing."""
     if len(values) < window:
         return values
@@ -85,8 +105,8 @@ def _find_breakdowns(
     mean_energy: float,
     beats: np.ndarray,
     bpm: float,
-    threshold: float = 0.4,
-    min_beats: int = 8,
+    threshold: float = BREAKDOWN_THRESHOLD,
+    min_beats: int = MIN_BREAKDOWN_BEATS,
 ) -> list[float]:
     """Find positions where energy drops below threshold for sustained period."""
     if bpm <= 0:
@@ -122,7 +142,7 @@ def _find_drops(
     energy: np.ndarray,
     mean_energy: float,
     breakdowns: list[float],
-    threshold: float = 0.8,
+    threshold: float = DROP_THRESHOLD,
 ) -> list[float]:
     """Find energy rises above threshold after each breakdown."""
     drops = []
@@ -194,14 +214,14 @@ def analyze_structure(filepath: Path | str, bpm: float | None = None) -> TrackSt
     # Detect intro end: first moment energy exceeds 60% of mean
     intro_end = None
     for i, e in enumerate(energy):
-        if e >= 0.6 * mean_energy:
+        if e >= INTRO_OUTRO_THRESHOLD * mean_energy:
             intro_end = _snap_to_downbeat(float(timestamps[i]), beats)
             break
 
     # Detect outro start: last moment energy drops below 60% and stays low
     outro_start = None
     for i in range(len(energy) - 1, -1, -1):
-        if energy[i] >= 0.6 * mean_energy:
+        if energy[i] >= INTRO_OUTRO_THRESHOLD * mean_energy:
             if i + 1 < len(timestamps):
                 outro_start = _snap_to_downbeat(float(timestamps[i + 1]), beats)
             break

@@ -25,8 +25,14 @@ export function useApi(path, opts = {}) {
   return { data, loading, error };
 }
 
-export async function fetchApi(path) {
-  const r = await fetch(`${API}${path}`);
-  if (!r.ok) throw new Error(`${r.status}`);
-  return r.json();
+export async function fetchApi(path, { timeout = 180000 } = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+  try {
+    const r = await fetch(`${API}${path}`, { signal: controller.signal });
+    if (!r.ok) throw new Error(`${r.status}`);
+    return r.json();
+  } finally {
+    clearTimeout(timer);
+  }
 }

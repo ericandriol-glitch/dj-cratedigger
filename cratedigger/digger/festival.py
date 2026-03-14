@@ -62,6 +62,46 @@ def parse_lineup(text: str) -> list[str]:
     return artists
 
 
+def fetch_edmtrain_lineup(event_name: str, api_key: str) -> list[str]:
+    """Fetch festival lineup from EDMTrain API.
+
+    Args:
+        event_name: Festival/event name to search for.
+        api_key: EDMTrain API key.
+
+    Returns:
+        List of artist names, or empty list if not found.
+    """
+    import json
+    import urllib.parse
+    import urllib.request
+
+    try:
+        encoded = urllib.parse.quote(event_name)
+        url = f"https://edmtrain.com/api/events?client={api_key}&festivalName={encoded}"
+        req = urllib.request.Request(url, headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+
+        if not data.get("data"):
+            return []
+
+        # Collect all unique artists across matching events
+        artists = []
+        seen = set()
+        for event in data["data"]:
+            for artist in event.get("artistList", []):
+                name = artist.get("name", "").strip()
+                if name and name.lower() not in seen:
+                    seen.add(name.lower())
+                    artists.append(name)
+
+        return artists
+    except Exception as e:
+        logger.warning("EDMTrain API request failed: %s", e)
+        return []
+
+
 def _normalize(name: str) -> str:
     """Normalize an artist name for fuzzy matching."""
     name = name.lower().strip()
