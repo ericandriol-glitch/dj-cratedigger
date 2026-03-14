@@ -132,109 +132,6 @@ def enrich_genres(limit: int = Query(50, ge=1, le=500)):
     return {"enriched": enriched, "total_missing": total_missing}
 
 
-# ── Related Tracks ─────────────────────────────────────────
-
-
-@app.get("/api/library/related")
-def related_tracks(
-    filepath: str = Query(...),
-    limit: int = Query(8, ge=1, le=20),
-):
-    """Find tracks that mix well with a given track based on BPM + Key compatibility."""
-    from cratedigger.utils.db import get_connection
-
-    conn = get_connection()
-
-    # Get the source track's BPM and key
-    source = conn.execute(
-        "SELECT bpm, key_camelot, energy FROM audio_analysis WHERE filepath = ?",
-        (filepath,),
-    ).fetchone()
-
-    if not source or not source[0]:
-        conn.close()
-        return {"tracks": [], "source_bpm": None, "source_key": None}
-
-    src_bpm, src_key, src_energy = source
-
-    # Camelot compatibility: same key, +-1, major/minor swap
-    compatible_keys = _camelot_compatible(src_key) if src_key else []
-    key_placeholders = ",".join("?" * len(compatible_keys)) if compatible_keys else "''"
-
-    # Find tracks with similar BPM (+-6) and compatible keys
-    bpm_min = src_bpm - 6
-    bpm_max = src_bpm + 6
-
-    query = f"""
-        SELECT filepath, bpm, key_camelot, energy, genre
-        FROM audio_analysis
-        WHERE filepath != ?
-          AND bpm IS NOT NULL AND bpm BETWEEN ? AND ?
-          {f"AND key_camelot IN ({key_placeholders})" if compatible_keys else ""}
-        ORDER BY ABS(bpm - ?) ASC
-        LIMIT ?
-    """
-    params = [filepath, bpm_min, bpm_max] + compatible_keys + [src_bpm, limit]
-    rows = conn.execute(query, params).fetchall()
-    conn.close()
-
-    from cratedigger.metadata import read_metadata
-
-    tracks = []
-    for fp_str, bpm, key, energy, genre in rows:
-        fp = Path(fp_str)
-        title = fp.stem
-        artist = ""
-        try:
-            meta = read_metadata(fp)
-            if meta.title:
-                title = meta.title
-            if meta.artist:
-                artist = meta.artist
-        except Exception:
-            if " - " in fp.stem:
-                parts = fp.stem.split(" - ", 1)
-                artist, title = parts[0].strip(), parts[1].strip()
-
-        tracks.append({
-            "filepath": fp_str,
-            "title": title,
-            "artist": artist,
-            "bpm": round(bpm) if bpm else None,
-            "key": key,
-            "energy": round(energy, 2) if energy else None,
-            "genre": genre,
-        })
-
-    return {
-        "tracks": tracks,
-        "source_bpm": round(src_bpm) if src_bpm else None,
-        "source_key": src_key,
-    }
-
-
-def _camelot_compatible(key: str) -> list[str]:
-    """Return Camelot keys compatible with the given key."""
-    if not key or len(key) < 2:
-        return []
-    try:
-        num = int(key[:-1])
-        letter = key[-1].upper()
-    except (ValueError, IndexError):
-        return []
-
-    result = [key]  # Same key
-    # Adjacent +-1
-    prev_num = 12 if num == 1 else num - 1
-    next_num = 1 if num == 12 else num + 1
-    result.append(f"{prev_num}{letter}")
-    result.append(f"{next_num}{letter}")
-    # Major/minor swap (same number)
-    other = "B" if letter == "A" else "A"
-    result.append(f"{num}{other}")
-    return result
-
-
 # ── Library Stats ──────────────────────────────────────────
 
 
@@ -671,7 +568,7 @@ def library_related(
     limit: int = Query(5, ge=1, le=20),
 ):
     """Find tracks compatible for harmonic mixing (BPM ±3, compatible Camelot keys)."""
-    from cratedigger.harmonic.camelot import compatible_keys, VALID_KEYS
+    from cratedigger.harmonic.camelot import VALID_KEYS, compatible_keys
     from cratedigger.metadata import read_metadata
     from cratedigger.utils.db import get_connection
 
@@ -688,6 +585,9 @@ def library_related(
 
     src_bpm, src_key = row
     bpm_lo, bpm_hi = src_bpm - 3, src_bpm + 3
+
+    # Get source track filename stem to exclude duplicates
+    src_stem = Path(filepath).stem.lower()
 
     # Find BPM-compatible tracks (exclude self)
     candidates = conn.execute(
@@ -707,18 +607,36 @@ def library_related(
 
     scored = []
     for fp, bpm, key, energy, genre in candidates:
-        key_score = 1.0 if key and key.strip() == src_key else (
-            0.9 if key and key.strip() in compat_keys else 0.3
-        )
+        # Skip duplicate copies of the same file
+        if Path(fp).stem.lower() == src_stem:
+            continue
+
+        key_clean = key.strip() if key else None
+        same_key = key_clean == src_key.strip() if key_clean and src_key else False
+        key_compat = key_clean in compat_keys if key_clean else False
+
+        key_score = 1.0 if same_key else (0.9 if key_compat else 0.3)
         bpm_score = 1.0 - abs(bpm - src_bpm) / 3.0
         score = key_score * 0.6 + bpm_score * 0.4
-        scored.append((fp, bpm, key, energy, genre, score))
+
+        # Build reason tag
+        reason = []
+        if same_key:
+            reason.append("Same key")
+        elif key_compat:
+            reason.append("Key compatible")
+        if abs(bpm - src_bpm) <= 1:
+            reason.append("BPM match")
+        elif abs(bpm - src_bpm) <= 3:
+            reason.append("BPM close")
+
+        scored.append((fp, bpm, key, energy, genre, score, " · ".join(reason) or "BPM range"))
 
     scored.sort(key=lambda x: -x[5])
     top = scored[:limit]
 
     tracks = []
-    for fp, bpm, key, energy, genre, score in top:
+    for fp, bpm, key, energy, genre, score, reason in top:
         p = Path(fp)
         title = p.stem
         artist = ""
@@ -737,7 +655,7 @@ def library_related(
             "filepath": str(p), "title": title, "artist": artist,
             "bpm": round(bpm) if bpm else None, "key": key or None,
             "energy": round(energy, 2) if energy else None, "genre": genre or None,
-            "status": "complete" if bpm and key and genre else "partial" if bpm or key else "missing",
+            "reason": reason,
         })
 
     return {"tracks": tracks}
@@ -759,9 +677,13 @@ MIME_MAP = {
 @app.get("/api/audio/stream")
 def stream_audio(filepath: str = Query(...), request: Request = None):
     """Serve an audio file with range request support for reliable browser playback."""
-    fp = Path(filepath)
+    fp = Path(filepath).resolve()
+
+    # Security: only serve audio files, block path traversal
     if not fp.exists():
         raise HTTPException(status_code=404, detail="File not found")
+    if fp.suffix.lower() not in MIME_MAP:
+        raise HTTPException(status_code=403, detail="Not an audio file")
 
     suffix = fp.suffix.lower()
     media_type = MIME_MAP.get(suffix, "application/octet-stream")
@@ -770,11 +692,16 @@ def stream_audio(filepath: str = Query(...), request: Request = None):
     # Handle Range header for seeking/buffering
     range_header = request.headers.get("range") if request else None
     if range_header:
-        # Parse "bytes=START-END"
+        # Parse "bytes=START-END" with safety clamps
         range_spec = range_header.replace("bytes=", "")
         parts = range_spec.split("-")
-        start = int(parts[0]) if parts[0] else 0
-        end = int(parts[1]) if parts[1] else file_size - 1
+        try:
+            start = max(0, int(parts[0])) if parts[0] else 0
+            end = int(parts[1]) if len(parts) > 1 and parts[1] else file_size - 1
+        except (ValueError, IndexError):
+            start = 0
+            end = file_size - 1
+        start = min(start, file_size - 1)
         end = min(end, file_size - 1)
         length = end - start + 1
 
