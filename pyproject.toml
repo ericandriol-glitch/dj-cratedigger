@@ -25,6 +25,7 @@ classifiers = [
 dependencies = [
     "click>=8.1.0",
     "mutagen>=1.47.0",
+    "numpy>=1.26.0",
     "rich>=13.0.0",
     "tinytag>=1.9.0",
     "pyyaml>=6.0",
