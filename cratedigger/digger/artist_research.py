@@ -144,7 +144,6 @@ def _extract_related_artists(artist_data: dict) -> list[dict]:
     related = []
     seen = set()
     for rel in artist_data.get("artist-relation-list", []):
-        target = rel.get("target", "")
         rel_type = rel.get("type", "")
         artist_info = rel.get("artist", {})
         name = artist_info.get("name", "")
@@ -222,7 +221,7 @@ def _cross_reference_library(
 def _check_spotify_status(artist_name: str) -> Optional[dict]:
     """Check if artist appears in Spotify streaming data."""
     try:
-        from cratedigger.enrichment.spotify import SpotifyProfile, load_spotify_profile
+        from cratedigger.enrichment.spotify import load_spotify_profile
         profile = load_spotify_profile()
         if not profile:
             return None

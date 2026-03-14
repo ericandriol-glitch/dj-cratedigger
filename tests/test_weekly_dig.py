@@ -1,9 +1,6 @@
 """Tests for weekly dig module (5.3)."""
 
-from pathlib import Path
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 from cratedigger.digger.weekly_dig import (
     GENRE_SLUGS,
@@ -17,7 +14,6 @@ from cratedigger.digger.weekly_dig import (
     parse_manual_releases,
     scan_new_releases,
 )
-
 
 # --- NewRelease dataclass ---
 

@@ -4,10 +4,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from mutagen.id3 import ID3, ID3NoHeaderError, TIT2, TPE1, TCON, TDRC, TBPM, TKEY
+from mutagen.flac import FLAC
+from mutagen.id3 import ID3, TBPM, TCON, TDRC, TIT2, TKEY, TPE1, ID3NoHeaderError
+
 # TCON = Content type (genre)
 from mutagen.mp4 import MP4
-from mutagen.flac import FLAC
 from mutagen.oggvorbis import OggVorbis
 
 from ..metadata import read_metadata

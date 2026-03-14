@@ -26,7 +26,7 @@ def report(output: str) -> None:
 
     out_path = generate_html_report(output_path=Path(output))
     console.print(f"  [green]Report saved to:[/green] {out_path}")
-    console.print(f"  Open in browser to view charts and stats.\n")
+    console.print("  Open in browser to view charts and stats.\n")
 
 
 @cli.command("pipeline")
@@ -42,8 +42,8 @@ def pipeline(path: str, apply: bool, gen_report: bool) -> None:
 
     Example: cratedigger pipeline /path/to/music --apply --report
     """
-    from ..scanner import find_audio_files
     from ..digger.profile import build_profile, save_profile
+    from ..scanner import find_audio_files
 
     console = Console(force_terminal=True, force_jupyter=False)
     library = Path(path)

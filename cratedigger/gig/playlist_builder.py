@@ -1,12 +1,12 @@
 """Smart playlist builder with harmonic + energy + BPM flow."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 from rich.console import Console
 from rich.table import Table
 
-from cratedigger.harmonic.camelot import compatibility_score, compatible_keys
+from cratedigger.harmonic.camelot import compatibility_score
 
 console = Console()
 

@@ -241,6 +241,7 @@ def analyze_structure(filepath: Path | str, bpm: float | None = None) -> TrackSt
 def store_structure(filepath: str, structure: TrackStructure, db_path: Path | None = None) -> None:
     """Store track structure in the database."""
     from datetime import datetime, timezone
+
     from cratedigger.utils.db import get_connection
 
     conn = get_connection(db_path)

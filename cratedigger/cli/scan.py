@@ -4,15 +4,15 @@ from pathlib import Path
 
 import click
 from rich.console import Console
-from rich.table import Table
 from rich.prompt import Confirm
+from rich.table import Table
 
-from ..scanner import scan_library, find_audio_files
+from ..analyzers.duplicates import find_duplicates
 from ..analyzers.filename import analyze_filename
 from ..analyzers.tags import analyze_tags
-from ..analyzers.duplicates import find_duplicates
-from ..models import LibraryReport, HealthScore
+from ..models import HealthScore, LibraryReport
 from ..report import print_terminal_report, save_markdown_report
+from ..scanner import find_audio_files, scan_library
 
 
 def _calculate_health_score(report: LibraryReport) -> float:
@@ -120,7 +120,7 @@ def _print_analysis_comparison(
 
 
 # Import cli group to register commands
-from . import cli
+from . import cli  # noqa: E402
 
 
 @cli.command()
@@ -196,7 +196,7 @@ def fix_tags(path: str, dry_run: bool, yes: bool) -> None:
     console = Console()
     scan_path = Path(path)
 
-    from ..fixers.tags import plan_tag_fixes, apply_tag_fixes
+    from ..fixers.tags import apply_tag_fixes, plan_tag_fixes
 
     console.print("\n  [bold magenta]DJ CrateDigger[/bold magenta] — Fix Tags\n")
     console.print(f"  Scanning [cyan]{scan_path}[/cyan]...\n")
@@ -261,7 +261,7 @@ def fix_dupes(path: str, dry_run: bool, trash_dir: str | None, yes: bool) -> Non
     console = Console()
     scan_path = Path(path)
 
-    from ..fixers.duplicates import plan_duplicate_cleanup, apply_duplicate_cleanup
+    from ..fixers.duplicates import apply_duplicate_cleanup, plan_duplicate_cleanup
 
     console.print("\n  [bold magenta]DJ CrateDigger[/bold magenta] — Fix Duplicates\n")
     console.print(f"  Scanning [cyan]{scan_path}[/cyan]...\n")
@@ -329,7 +329,7 @@ def fix_filenames(path: str, dry_run: bool, yes: bool) -> None:
     console = Console()
     scan_path = Path(path)
 
-    from ..fixers.filename import plan_filename_fixes, apply_filename_fixes
+    from ..fixers.filename import apply_filename_fixes, plan_filename_fixes
 
     console.print("\n  [bold magenta]DJ CrateDigger[/bold magenta] — Fix Filenames\n")
     console.print(f"  Scanning [cyan]{scan_path}[/cyan]...\n")

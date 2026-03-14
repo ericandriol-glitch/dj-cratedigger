@@ -1,6 +1,5 @@
 """Streaming integration commands (Spotify, YouTube) and dig-sleeping for DJ CrateDigger."""
 
-import click
 from rich.console import Console
 
 # Import cli group to register commands
@@ -16,10 +15,12 @@ def spotify():
 @spotify.command("sync")
 def spotify_sync() -> None:
     """Sync your Spotify streaming profile (opens browser for OAuth)."""
-    from ..utils.config import get_config
     from ..enrichment.spotify import (
-        display_spotify_profile, save_spotify_profile, sync_spotify,
+        display_spotify_profile,
+        save_spotify_profile,
+        sync_spotify,
     )
+    from ..utils.config import get_config
 
     console = Console()
     console.print("\n  [bold green]DJ CrateDigger[/bold green] — Spotify Sync\n")
@@ -68,10 +69,12 @@ def youtube():
 @youtube.command("sync")
 def youtube_sync() -> None:
     """Sync your YouTube Music streaming profile."""
-    from ..utils.config import get_config
     from ..enrichment.youtube import (
-        display_youtube_profile, save_youtube_profile, sync_youtube,
+        display_youtube_profile,
+        save_youtube_profile,
+        sync_youtube,
     )
+    from ..utils.config import get_config
 
     console = Console()
     console.print("\n  [bold red]DJ CrateDigger[/bold red] — YouTube Music Sync\n")
@@ -121,9 +124,9 @@ def youtube_show() -> None:
 def dig_sleeping() -> None:
     """Cross-reference streaming history with your USB library to find gaps."""
     from ..digger.profile import load_profile
+    from ..digger.sleeping import display_sleeping_on, find_sleeping_on
     from ..enrichment.spotify import load_spotify_profile
     from ..enrichment.youtube import load_youtube_profile
-    from ..digger.sleeping import display_sleeping_on, find_sleeping_on
 
     console = Console()
     console.print("\n  [bold yellow]DJ CrateDigger[/bold yellow] — What Am I Sleeping On?\n")

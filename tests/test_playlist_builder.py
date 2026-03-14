@@ -2,11 +2,10 @@
 
 from cratedigger.gig.playlist_builder import (
     PlaylistTrack,
+    _bpm_range_for_slot,
     build_playlist,
     filter_candidates,
     score_pair,
-    _bpm_range_for_slot,
-    _find_starter,
 )
 
 

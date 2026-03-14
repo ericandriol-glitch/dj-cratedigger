@@ -1,6 +1,6 @@
 """Analyze metadata tag completeness and quality."""
 
-from ..models import TrackMetadata, HealthScore
+from ..models import HealthScore, TrackMetadata
 
 # Generic/placeholder values that indicate missing real data
 GENERIC_VALUES = {

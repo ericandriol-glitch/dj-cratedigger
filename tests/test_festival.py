@@ -1,19 +1,18 @@
 """Tests for festival lineup scanner."""
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
 from click.testing import CliRunner
 
 from cratedigger.cli import cli
 from cratedigger.digger.festival import (
     FestivalReport,
     LineupArtist,
+    _normalize,
     display_festival_report,
     parse_lineup,
     scan_festival,
-    _normalize,
 )
 
 

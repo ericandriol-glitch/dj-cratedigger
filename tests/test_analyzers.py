@@ -1,11 +1,10 @@
 """Tests for the analyzer modules."""
 from pathlib import Path
 
+from cratedigger.analyzers.duplicates import find_duplicates
 from cratedigger.analyzers.filename import analyze_filename
 from cratedigger.analyzers.tags import analyze_tags
-from cratedigger.analyzers.duplicates import find_duplicates
 from cratedigger.models import HealthScore, TrackAnalysis, TrackMetadata
-
 
 # --- Filename analyzer ---
 

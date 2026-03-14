@@ -3,7 +3,6 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 from click.testing import CliRunner
 
 from cratedigger.cli import cli
@@ -15,8 +14,8 @@ from cratedigger.digger.label import (
     RosterArtist,
     _extract_aliases_from_text,
     _extract_labels_from_beatport,
-    _extract_labels_from_snippets,
     _extract_labels_from_ra,
+    _extract_labels_from_snippets,
     cross_reference_library,
     display_label_report,
     enrich_with_web_search,
@@ -27,7 +26,6 @@ from cratedigger.digger.label import (
     research_label,
     search_artist,
 )
-
 
 # --- Mock MusicBrainz module ---
 
@@ -665,18 +663,18 @@ class TestEnrichWithWebSearch:
         result = enrich_with_web_search("Vitess", report)
 
         assert len(result.labels) == 3
-        label_names = [l.name for l in result.labels]
+        label_names = [lb.name for lb in result.labels]
         assert "Afulab" in label_names
         assert "Chevry Agency" in label_names
         assert "Running Hot" in label_names
 
         # Chevry Agency found on MB should have web+musicbrainz source
-        chevry = next(l for l in result.labels if l.name == "Chevry Agency")
+        chevry = next(lb for lb in result.labels if lb.name == "Chevry Agency")
         assert chevry.source == "web+musicbrainz"
         assert chevry.mbid == "lab-chevry"
 
         # Running Hot not on MB should have web source
-        rh = next(l for l in result.labels if l.name == "Running Hot")
+        rh = next(lb for lb in result.labels if lb.name == "Running Hot")
         assert rh.source == "web"
         assert rh.mbid == ""
 

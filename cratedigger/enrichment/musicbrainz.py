@@ -217,7 +217,7 @@ def lookup_genre(artist: str, title: str, rate_limit: float = 1.0) -> GenreLooku
 
 def store_genre_results(
     lookups: list[tuple[str, GenreLookup]],
-    db_path: Optional["Path"] = None,
+    db_path: Optional[str] = None,
 ) -> int:
     """Store genre results from MusicBrainz lookups into the database.
 

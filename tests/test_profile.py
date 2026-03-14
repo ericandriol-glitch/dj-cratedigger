@@ -160,8 +160,9 @@ class TestProfileCLI:
     """Test profile CLI commands."""
 
     def test_profile_show_no_profile(self):
-        import cratedigger.utils.db as db_mod
         import tempfile
+
+        import cratedigger.utils.db as db_mod
         with tempfile.TemporaryDirectory() as td:
             original = db_mod.DEFAULT_DB_PATH
             db_mod.DEFAULT_DB_PATH = Path(td) / "test.db"

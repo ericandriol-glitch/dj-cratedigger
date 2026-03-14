@@ -4,8 +4,8 @@ from pathlib import Path
 
 import click
 from rich.console import Console
-from rich.table import Table
 from rich.prompt import Confirm
+from rich.table import Table
 
 from ..scanner import find_audio_files
 
@@ -24,8 +24,8 @@ def analyze(path: str, dry_run: bool, yes: bool, workers: int, only_missing: boo
     import time
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    from ..metadata import read_metadata
     from ..audio_analysis.analyzer import analyze_track
+    from ..metadata import read_metadata
 
     console = Console()
     scan_path = Path(path)
@@ -180,9 +180,9 @@ def enrich(path: str, dry_run: bool, yes: bool, rate_limit: float) -> None:
     """Enrich missing genre tags using MusicBrainz lookups."""
     import time
 
-    from ..metadata import read_metadata
-    from ..enrichment.musicbrainz import lookup_genre, clear_cache
+    from ..enrichment.musicbrainz import clear_cache, lookup_genre
     from ..fixers.tags import TagFix, apply_tag_fixes
+    from ..metadata import read_metadata
 
     console = Console()
     scan_path = Path(path)

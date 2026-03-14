@@ -1,7 +1,6 @@
 """Tests for track structure detection."""
 
 import numpy as np
-import pytest
 
 from cratedigger.gig.structure_analyzer import (
     TrackStructure,

@@ -7,13 +7,11 @@ from click.testing import CliRunner
 from cratedigger.cli import cli
 from cratedigger.digger.profile import DJProfile, save_profile
 from cratedigger.digger.sleeping import (
-    SleepingOnReport,
     _normalize_artist,
     find_sleeping_on,
 )
 from cratedigger.enrichment.spotify import SpotifyProfile, save_spotify_profile
 from cratedigger.enrichment.youtube import YouTubeProfile
-from cratedigger.utils.db import get_connection
 
 
 class TestNormalizeArtist:

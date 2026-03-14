@@ -1,15 +1,12 @@
 """Tests for download folder watcher."""
 
-import shutil
 from pathlib import Path
 from unittest.mock import patch
 
 from cratedigger.core.watcher import (
-    ProcessResult,
     WatcherConfig,
     _build_filename,
     _is_audio_file,
-    _read_tags,
     process_file,
 )
 

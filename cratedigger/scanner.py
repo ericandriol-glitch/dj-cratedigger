@@ -3,7 +3,7 @@
 import time
 from pathlib import Path
 
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, MofNCompleteColumn
+from rich.progress import BarColumn, MofNCompleteColumn, Progress, SpinnerColumn, TextColumn
 
 from .metadata import read_metadata
 from .models import TrackAnalysis

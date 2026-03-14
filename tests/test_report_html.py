@@ -1,9 +1,6 @@
 """Tests for HTML library insights report."""
 
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-
-import pytest
 
 from cratedigger.report_html import _query_analysis_stats, generate_html_report
 
@@ -78,7 +75,7 @@ class TestGenerateHtmlReport:
         conn.close()
 
         out = tmp_path / "report.html"
-        result = generate_html_report(db_path=db_path, output_path=out)
+        generate_html_report(db_path=db_path, output_path=out)
 
         assert out.exists()
         content = out.read_text()

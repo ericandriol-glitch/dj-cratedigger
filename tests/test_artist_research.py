@@ -1,24 +1,19 @@
 """Tests for artist research module (4.5)."""
 
-from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from cratedigger.digger.artist_research import (
     ArtistProfile,
     _cross_reference_library,
     _extract_genres,
-    _extract_labels_from_releases,
-    _extract_releases,
     _extract_related_artists,
+    _extract_releases,
     _extract_urls,
     _normalize_artist,
     _search_artist_mb,
     display_artist_report,
     research_artist,
 )
-
 
 # --- Normalization ---
 

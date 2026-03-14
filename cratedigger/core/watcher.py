@@ -7,8 +7,6 @@ from pathlib import Path
 
 from rich.console import Console
 
-from cratedigger.scanner import find_audio_files
-
 console = Console()
 
 AUDIO_EXTENSIONS = {".mp3", ".flac", ".wav", ".aif", ".aiff", ".m4a", ".ogg", ".opus"}
@@ -175,8 +173,8 @@ def watch_directory(config: WatcherConfig) -> None:
     Blocks until interrupted (Ctrl+C).
     """
     try:
+        from watchdog.events import FileCreatedEvent, FileSystemEventHandler
         from watchdog.observers import Observer
-        from watchdog.events import FileSystemEventHandler, FileCreatedEvent
     except ImportError:
         console.print("  [red]watchdog not installed. Run: pip install watchdog[/red]")
         return
@@ -224,7 +222,7 @@ def watch_directory(config: WatcherConfig) -> None:
                 dest = result.final_path or filepath
                 console.print(f"  [green]→ {dest.relative_to(config.target_dir)}[/green]")
                 if result.analyzed:
-                    console.print(f"    [dim]Essentia analysis stored[/dim]")
+                    console.print("    [dim]Essentia analysis stored[/dim]")
 
     handler = AudioHandler()
     observer = Observer()
@@ -234,7 +232,7 @@ def watch_directory(config: WatcherConfig) -> None:
     console.print(f"\n  [bold magenta]Watching[/bold magenta] {config.watch_dir}")
     console.print(f"  [dim]Target: {config.target_dir}[/dim]")
     console.print(f"  [dim]Convention: {config.convention}[/dim]")
-    console.print(f"  [dim]Press Ctrl+C to stop[/dim]\n")
+    console.print("  [dim]Press Ctrl+C to stop[/dim]\n")
 
     try:
         while True:

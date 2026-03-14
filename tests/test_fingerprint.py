@@ -1,13 +1,13 @@
 """Tests for AcoustID fingerprint matching."""
 
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from cratedigger.core.fingerprint import (
     FingerprintResult,
     fingerprint_file,
-    lookup_acoustid,
     identify_track,
+    lookup_acoustid,
 )
 
 
@@ -41,7 +41,7 @@ class TestFingerprintFile:
         with patch.dict("sys.modules", {"acoustid": mock_acoustid}):
             mock_acoustid.fingerprint_file.return_value = (300.0, "AQAA...")
             fp = Path(__file__)  # Use a file that exists
-            result = fingerprint_file(fp)
+            fingerprint_file(fp)  # noqa: F841
             # Can't test fully without fpcalc installed,
             # but we verify the function handles import gracefully
 
@@ -54,7 +54,7 @@ class TestLookupAcoustid:
     def test_no_pyacoustid(self):
         with patch.dict("sys.modules", {"acoustid": None}):
             # This tests the ImportError path
-            result = lookup_acoustid(Path(__file__), "test_key")
+            lookup_acoustid(Path(__file__), "test_key")  # noqa: F841
             # Will either get import error or file not audio error
 
 

@@ -75,14 +75,14 @@ def dig_weekly(genre: tuple, library: str | None, paste: bool) -> None:
       cratedigger dig weekly --paste
     """
     from ..digger.weekly_dig import (
+        WeeklyDigReport,
         display_weekly_report,
         parse_manual_releases,
         scan_new_releases,
-        WeeklyDigReport,
     )
 
     console = Console(force_terminal=True, force_jupyter=False)
-    console.print(f"\n  [bold magenta]DJ CrateDigger[/bold magenta] — Weekly Dig\n")
+    console.print("\n  [bold magenta]DJ CrateDigger[/bold magenta] — Weekly Dig\n")
 
     library_path = Path(library) if library else None
 
@@ -201,8 +201,8 @@ def dig_festival(name: str | None, lineup: str | None, library: str | None, no_g
         console.print(f"\n  [bold magenta]DJ CrateDigger[/bold magenta] — Festival Scanner: [bold]{name}[/bold]\n")
         console.print("  [yellow]EDMTrain API key not configured.[/yellow]")
         console.print("  Get a free key at https://edmtrain.com/api and add it to ~/.cratedigger/config.yaml")
-        console.print(f'\n  For now, paste the lineup manually:')
-        console.print(f'  cratedigger dig festival --lineup "Artist1, Artist2, Artist3"\n')
+        console.print('\n  For now, paste the lineup manually:')
+        console.print('  cratedigger dig festival --lineup "Artist1, Artist2, Artist3"\n')
         return
 
     # Lineup mode

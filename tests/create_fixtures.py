@@ -2,7 +2,7 @@
 import wave
 from pathlib import Path
 
-from mutagen.id3 import ID3, TIT2, TPE1, TALB, TCON, TBPM, TDRC
+from mutagen.id3 import ID3, TALB, TBPM, TCON, TDRC, TIT2, TPE1
 
 FIXTURES = Path(__file__).parent / "fixtures"
 FIXTURES.mkdir(exist_ok=True)

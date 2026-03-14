@@ -3,11 +3,11 @@
 from pathlib import Path
 
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
+from rich.table import Table
 from rich.text import Text
 
-from .models import LibraryReport, HealthScore, TrackAnalysis
+from .models import HealthScore, LibraryReport, TrackAnalysis
 
 
 def _count_by_score(tracks: list[TrackAnalysis], attr: str) -> dict[HealthScore, int]:

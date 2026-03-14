@@ -1,6 +1,7 @@
 """Transition practice prioritiser — find the tricky mixes in your set."""
 
 from dataclasses import dataclass
+
 from rich.console import Console
 from rich.table import Table
 

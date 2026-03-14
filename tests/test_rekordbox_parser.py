@@ -204,6 +204,7 @@ class TestErrorHandling:
 
     def test_malformed_xml_raises(self, tmp_path: Path):
         import xml.etree.ElementTree as ET
+
         import pytest
         bad_xml = tmp_path / "bad.xml"
         bad_xml.write_text("not xml at all", encoding="utf-8")

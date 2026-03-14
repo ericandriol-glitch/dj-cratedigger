@@ -1,15 +1,14 @@
 """Tests for cue point generator."""
 
+
 import pytest
-from pathlib import Path
 
 from cratedigger.gig.cue_generator import (
-    CueTemplate,
     GeneratedCue,
+    _resolve_position,
     generate_cues,
     load_template,
     store_cues,
-    _resolve_position,
 )
 from cratedigger.gig.structure_analyzer import TrackStructure
 

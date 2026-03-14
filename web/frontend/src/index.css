@@ -1,0 +1,29 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+::-webkit-scrollbar { display: none; }
+
+body {
+  margin: 0;
+  background: #0B0A10;
+  color: #F0EBE3;
+  font-family: 'DM Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Animations */
+@keyframes pulseGlow { 0%,100% { opacity:0.45; } 50% { opacity:1; } }
+@keyframes wvAnim { 0%,100% { height:2px; } 50% { height:16px; } }
+@keyframes barGrow { from { width:0%; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.wv-bar { animation: wvAnim ease-in-out infinite alternate; }
+.bar-fill { animation: barGrow 1.4s cubic-bezier(0.16,1,0.3,1) both; }
+.track-row:active { background: #1E1D2A; border-radius: 8px; margin: 0 -4px; padding-left: 4px; padding-right: 4px; }
+.issue-row:active { background: #1E1D2A; transform: scale(0.98); }
+.pill:active { transform: scale(0.95); }

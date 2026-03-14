@@ -458,7 +458,7 @@ def _extract_labels_from_snippets(html_content: str) -> list[str]:
     # Filter out the artist's own name and common false positives
     skip_lower = {"various artists", "dj", "live", "remix", "ep", "lp", "album",
                    "music", "records", "recordings", "discs", "agency"}
-    return sorted(l for l in labels if l.lower() not in skip_lower)
+    return sorted(name for name in labels if name.lower() not in skip_lower)
 
 
 def _extract_aliases_from_text(text: str, artist_name: str) -> list[str]:
@@ -491,7 +491,7 @@ def _fetch_ra_page(artist_name: str) -> tuple[list[str], list[str]]:
     """
     slug = re.sub(r'[^a-z0-9]+', '', artist_name.lower())
     url = f"https://ra.co/dj/{slug}"
-    console.print(f"  [dim]Checking Resident Advisor...[/dim]")
+    console.print("  [dim]Checking Resident Advisor...[/dim]")
     html_content = _web_fetch(url)
     if not html_content:
         return [], []
@@ -509,7 +509,7 @@ def _fetch_beatport_search(artist_name: str) -> list[str]:
     """
     query = urllib.parse.quote(artist_name)
     url = f"https://www.beatport.com/search?q={query}&type=artists"
-    console.print(f"  [dim]Checking Beatport...[/dim]")
+    console.print("  [dim]Checking Beatport...[/dim]")
     html_content = _web_fetch(url)
     if not html_content:
         return []
@@ -527,7 +527,7 @@ def _fetch_ddg_search(artist_name: str, extra_terms: str = "") -> tuple[list[str
         search_terms += f" {extra_terms}"
     query = urllib.parse.quote(search_terms)
     url = f"https://html.duckduckgo.com/html/?q={query}"
-    console.print(f"  [dim]Searching web for additional labels...[/dim]")
+    console.print("  [dim]Searching web for additional labels...[/dim]")
     html_content = _web_fetch(url)
     if not html_content:
         return [], []
@@ -713,7 +713,7 @@ def research_label(
 
             # Step 5: Cross-reference with library
             if library_path and roster:
-                console.print(f"  [dim]Cross-referencing with library...[/dim]")
+                console.print("  [dim]Cross-referencing with library...[/dim]")
                 roster = cross_reference_library(roster, library_path)
 
             report.roster[info.name] = roster
@@ -728,7 +728,7 @@ def research_label(
                 console.print(f"  [dim]Getting roster for {label.name}...[/dim]")
                 roster = get_label_roster(label.mbid, exclude_artist=artist.name)
                 if library_path and roster:
-                    console.print(f"  [dim]Cross-referencing with library...[/dim]")
+                    console.print("  [dim]Cross-referencing with library...[/dim]")
                     roster = cross_reference_library(roster, library_path)
                 report.roster[label.name] = roster
 

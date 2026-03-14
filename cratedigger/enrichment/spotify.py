@@ -7,10 +7,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import spotipy
-from spotipy.oauth2 import SpotifyOAuth
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+from spotipy.oauth2 import SpotifyOAuth
 
 from cratedigger.utils.db import get_connection
 
