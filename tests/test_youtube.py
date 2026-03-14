@@ -70,52 +70,50 @@ class TestSyncYouTube:
         with pytest.raises(FileNotFoundError, match="YouTube auth file not found"):
             sync_youtube(str(tmp_path / "nonexistent.json"))
 
-    @patch("cratedigger.enrichment.youtube.YTMusic")
-    def test_sync_pulls_all_data(self, mock_yt_cls, tmp_path: Path):
-        # Create a fake auth file so the existence check passes
+    @patch("cratedigger.enrichment.youtube._yt_get")
+    @patch("cratedigger.enrichment.youtube._get_token", return_value="fake-token")
+    def test_sync_pulls_all_data(self, mock_token, mock_yt_get, tmp_path: Path):
         auth_file = tmp_path / "oauth.json"
-        auth_file.write_text("{}")
+        auth_file.write_text('{"access_token": "fake"}')
 
-        mock_yt = MagicMock()
-        mock_yt_cls.return_value = mock_yt
+        def yt_get_side_effect(token, endpoint, params):
+            if endpoint == "videos":
+                return {
+                    "items": [{
+                        "snippet": {
+                            "title": "Kerala",
+                            "videoOwnerChannelTitle": "Bonobo - Topic",
+                        }
+                    }],
+                }
+            if endpoint == "playlists":
+                return {
+                    "items": [{
+                        "snippet": {"title": "House Vibes"},
+                        "contentDetails": {"itemCount": 30},
+                    }],
+                }
+            return {"items": []}
 
-        mock_yt.get_liked_songs.return_value = {
-            "tracks": [{
-                "title": "Kerala",
-                "artists": [{"name": "Bonobo"}],
-                "album": {"name": "Migration"},
-            }]
-        }
-
-        mock_yt.get_library_playlists.return_value = [
-            {"title": "House Vibes", "count": 30},
-        ]
-
-        mock_yt.get_history.return_value = [
-            {"title": "Latch", "artists": [{"name": "Disclosure"}]},
-        ]
+        mock_yt_get.side_effect = yt_get_side_effect
 
         profile = sync_youtube(str(auth_file))
 
         assert len(profile.liked_songs) == 1
         assert profile.liked_songs[0]["artist"] == "Bonobo"
+        assert profile.liked_songs[0]["title"] == "Kerala"
         assert len(profile.playlists) == 1
         assert profile.playlists[0]["name"] == "House Vibes"
-        assert len(profile.history) == 1
         assert profile.synced_at  # non-empty
 
-    @patch("cratedigger.enrichment.youtube.YTMusic")
-    def test_sync_handles_api_errors_gracefully(self, mock_yt_cls, tmp_path: Path):
+    @patch("cratedigger.enrichment.youtube._yt_get")
+    @patch("cratedigger.enrichment.youtube._get_token", return_value="fake-token")
+    def test_sync_handles_api_errors_gracefully(self, mock_token, mock_yt_get, tmp_path: Path):
         auth_file = tmp_path / "oauth.json"
-        auth_file.write_text("{}")
-
-        mock_yt = MagicMock()
-        mock_yt_cls.return_value = mock_yt
+        auth_file.write_text('{"access_token": "fake"}')
 
         # All API calls raise
-        mock_yt.get_liked_songs.side_effect = Exception("API error")
-        mock_yt.get_library_playlists.side_effect = Exception("API error")
-        mock_yt.get_history.side_effect = Exception("API error")
+        mock_yt_get.side_effect = Exception("API error")
 
         profile = sync_youtube(str(auth_file))
 
