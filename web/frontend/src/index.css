@@ -1,7 +1,11 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-::-webkit-scrollbar { display: none; }
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #262433; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3a3848; }
 
 body {
   margin: 0;
@@ -12,18 +16,216 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-#root {
-  min-height: 100vh;
-}
+#root { min-height: 100vh; }
 
-/* Animations */
+/* ─── Core Animations ─── */
 @keyframes pulseGlow { 0%,100% { opacity:0.45; } 50% { opacity:1; } }
 @keyframes wvAnim { 0%,100% { height:2px; } 50% { height:16px; } }
 @keyframes barGrow { from { width:0%; } }
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes fadeSlideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
 
 .wv-bar { animation: wvAnim ease-in-out infinite alternate; }
 .bar-fill { animation: barGrow 1.4s cubic-bezier(0.16,1,0.3,1) both; }
-.track-row:active { background: #1E1D2A; border-radius: 8px; margin: 0 -4px; padding-left: 4px; padding-right: 4px; }
-.issue-row:active { background: #1E1D2A; transform: scale(0.98); }
+
+/* ─── Interactive States ─── */
+.track-row {
+  transition: all 0.15s ease;
+  border-radius: 8px;
+  margin: 0 -6px;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+.track-row:hover {
+  background: #1E1D2A;
+}
+.issue-row {
+  transition: all 0.18s ease;
+}
+.issue-row:hover {
+  background: #1E1D2A;
+  border-color: #2a2838 !important;
+  transform: translateX(2px);
+}
+.pill {
+  transition: all 0.15s ease;
+}
+.pill:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
 .pill:active { transform: scale(0.95); }
+
+/* ─── Card glow on hover ─── */
+.card-glow {
+  transition: all 0.25s ease;
+  position: relative;
+}
+.card-glow:hover {
+  border-color: #2a2838 !important;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(240,235,227,0.02);
+}
+
+/* ─── Input focus glow ─── */
+input:focus, textarea:focus {
+  border-color: #E8553A50 !important;
+  box-shadow: 0 0 0 3px #E8553A12, 0 0 20px #E8553A08;
+}
+
+/* ─── Hero card — gradient wash ─── */
+.hero-card {
+  position: relative;
+  overflow: hidden;
+}
+.hero-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -30%;
+  width: 160%;
+  height: 200%;
+  background: radial-gradient(ellipse at 30% 20%, #C5F53606 0%, transparent 60%),
+              radial-gradient(ellipse at 80% 80%, #E8553A04 0%, transparent 50%);
+  pointer-events: none;
+}
+
+/* ─── Section entry animation ─── */
+.section-enter {
+  animation: fadeSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.section-enter:nth-child(2) { animation-delay: 0.06s; }
+.section-enter:nth-child(3) { animation-delay: 0.12s; }
+.section-enter:nth-child(4) { animation-delay: 0.18s; }
+.section-enter:nth-child(5) { animation-delay: 0.24s; }
+
+/* ─── Noise texture overlay ─── */
+.noise-bg::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  opacity: 0.025;
+  pointer-events: none;
+  z-index: 1;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 128px 128px;
+}
+
+/* ─── Two-column grid (desktop) ─── */
+.two-col-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+
+/* ─── Sidebar refinements ─── */
+.sidebar-nav-item {
+  transition: all 0.15s ease;
+  position: relative;
+}
+.sidebar-nav-item:hover {
+  background: #E8553A08 !important;
+}
+.sidebar-nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 18px;
+  background: #E8553A;
+  border-radius: 0 2px 2px 0;
+}
+
+/* ─── BPM/Key badges — DJ-first styling ─── */
+.badge-bpm {
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: -0.3px;
+  background: #3B7EF712;
+  border: 1px solid #3B7EF720;
+  color: #3B7EF7;
+}
+.badge-key {
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: -0.3px;
+  background: #C47A9B12;
+  border: 1px solid #C47A9B20;
+  color: #C47A9B;
+}
+
+/* ─── Track play-on-hover ─── */
+.track-row:hover .track-num-text { display: none !important; }
+.track-row:hover .track-play-icon { display: block !important; }
+
+/* ─── Player bar ─── */
+.player-bar:hover .scrub-handle { opacity: 1 !important; }
+
+.vol-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 3px;
+  border-radius: 2px;
+  background: #262433;
+  outline: none;
+  cursor: pointer;
+}
+.vol-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #E8553A;
+  cursor: pointer;
+  border: none;
+}
+
+/* ─── Responsive layout ─── */
+
+@media (min-width: 768px) {
+  .desktop-sidebar { display: block; }
+  .mobile-only { display: none !important; }
+  .content-inner {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 10px 28px 40px;
+  }
+  .two-col-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  /* Larger track font on desktop */
+  .track-row { padding-top: 14px !important; padding-bottom: 14px !important; }
+}
+
+@media (min-width: 1200px) {
+  .content-inner {
+    max-width: 1080px;
+  }
+}
+
+@media (max-width: 767px) {
+  .desktop-sidebar { display: none; }
+  .mobile-only { display: block; }
+  .main-content {
+    padding-bottom: 82px !important;
+    max-height: none !important;
+  }
+  .content-inner {
+    max-width: 480px;
+    margin: 0 auto;
+  }
+  /* Hide non-essential player elements on mobile */
+  .player-badges { display: none !important; }
+  .player-waveform { display: none !important; }
+  .player-volume { display: none !important; }
+}

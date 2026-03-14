@@ -11,9 +11,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 # Force UTF-8 output for Rich console in submodules
 os.environ["PYTHONIOENCODING"] = "utf-8"
 
-from fastapi import FastAPI, Query, HTTPException
+from fastapi import FastAPI, Query, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 
 app = FastAPI(title="CrateDigger API", version="0.1.0")
 
@@ -78,6 +78,58 @@ def scan_library(path: str = Query(...)):
     conn.close()
 
     return {"scanned": inserted, "total_files": len(audio_files), "path": str(scan_path)}
+
+
+# ── Enrich Genres ─────────────────────────────────────────
+
+
+@app.post("/api/enrich/genres")
+def enrich_genres(limit: int = Query(50, ge=1, le=500)):
+    """Look up genres via MusicBrainz for tracks missing genre tags."""
+    from cratedigger.metadata import read_metadata
+    from cratedigger.utils.db import get_connection
+
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT filepath FROM audio_analysis "
+        "WHERE (genre IS NULL OR genre = '') LIMIT ?",
+        (limit,),
+    ).fetchall()
+
+    if not rows:
+        conn.close()
+        return {"enriched": 0, "total_missing": 0}
+
+    enriched = 0
+    try:
+        from cratedigger.enrichment.musicbrainz import lookup_genre
+    except ImportError:
+        conn.close()
+        return {"enriched": 0, "error": "musicbrainzngs not installed"}
+
+    for (filepath,) in rows:
+        fp = Path(filepath)
+        try:
+            meta = read_metadata(fp)
+            if not meta.artist or not meta.title:
+                continue
+            result = lookup_genre(meta.artist, meta.title)
+            if result.genre:
+                conn.execute(
+                    "UPDATE audio_analysis SET genre = ? WHERE filepath = ?",
+                    (result.genre, filepath),
+                )
+                enriched += 1
+        except Exception:
+            continue
+
+    conn.commit()
+    total_missing = conn.execute(
+        "SELECT COUNT(*) FROM audio_analysis WHERE genre IS NULL OR genre = ''"
+    ).fetchone()[0]
+    conn.close()
+
+    return {"enriched": enriched, "total_missing": total_missing}
 
 
 # ── Library Stats ──────────────────────────────────────────
@@ -522,19 +574,54 @@ MIME_MAP = {
 
 
 @app.get("/api/audio/stream")
-def stream_audio(filepath: str = Query(...)):
-    """Serve an audio file from the library for browser playback."""
+def stream_audio(filepath: str = Query(...), request: Request = None):
+    """Serve an audio file with range request support for reliable browser playback."""
     fp = Path(filepath)
     if not fp.exists():
         raise HTTPException(status_code=404, detail="File not found")
 
     suffix = fp.suffix.lower()
     media_type = MIME_MAP.get(suffix, "application/octet-stream")
+    file_size = fp.stat().st_size
+
+    # Handle Range header for seeking/buffering
+    range_header = request.headers.get("range") if request else None
+    if range_header:
+        # Parse "bytes=START-END"
+        range_spec = range_header.replace("bytes=", "")
+        parts = range_spec.split("-")
+        start = int(parts[0]) if parts[0] else 0
+        end = int(parts[1]) if parts[1] else file_size - 1
+        end = min(end, file_size - 1)
+        length = end - start + 1
+
+        def iter_range():
+            with open(fp, "rb") as f:
+                f.seek(start)
+                remaining = length
+                while remaining > 0:
+                    chunk = f.read(min(8192, remaining))
+                    if not chunk:
+                        break
+                    remaining -= len(chunk)
+                    yield chunk
+
+        return StreamingResponse(
+            iter_range(),
+            status_code=206,
+            media_type=media_type,
+            headers={
+                "Content-Range": f"bytes {start}-{end}/{file_size}",
+                "Content-Length": str(length),
+                "Accept-Ranges": "bytes",
+            },
+        )
 
     return FileResponse(
         path=str(fp),
         media_type=media_type,
         filename=fp.name,
+        headers={"Accept-Ranges": "bytes"},
     )
 
 
