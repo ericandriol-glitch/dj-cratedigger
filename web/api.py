@@ -13,6 +13,7 @@ os.environ["PYTHONIOENCODING"] = "utf-8"
 
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 app = FastAPI(title="CrateDigger API", version="0.1.0")
 
@@ -186,33 +187,52 @@ def library_tracks(
     offset: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     filter: str = Query("all"),
+    search: str = Query(None),
+    sort: str = Query("filepath"),
+    order: str = Query("asc"),
 ):
-    """Paginated track list with metadata from DB + file tags."""
+    """Paginated track list with metadata, server-side search, and sorting."""
     from cratedigger.metadata import read_metadata
     from cratedigger.utils.db import get_connection
 
     conn = get_connection()
 
-    # Build WHERE clause based on filter
-    where = ""
+    # Build WHERE clauses
+    conditions = []
+    params = []
+
     if filter == "complete":
-        where = "WHERE bpm IS NOT NULL AND key_camelot IS NOT NULL AND genre IS NOT NULL AND genre != ''"
+        conditions.append("bpm IS NOT NULL AND key_camelot IS NOT NULL AND genre IS NOT NULL AND genre != ''")
     elif filter == "partial":
-        where = (
-            "WHERE (bpm IS NOT NULL OR key_camelot IS NOT NULL) "
+        conditions.append(
+            "(bpm IS NOT NULL OR key_camelot IS NOT NULL) "
             "AND NOT (bpm IS NOT NULL AND key_camelot IS NOT NULL AND genre IS NOT NULL AND genre != '')"
         )
     elif filter == "missing":
-        where = "WHERE bpm IS NULL AND key_camelot IS NULL"
+        conditions.append("bpm IS NULL AND key_camelot IS NULL")
 
-    # Get total for this filter
-    total = conn.execute(f"SELECT COUNT(*) FROM audio_analysis {where}").fetchone()[0]
+    # Server-side search — matches against filepath (contains artist/title)
+    if search and search.strip():
+        conditions.append("filepath LIKE ?")
+        params.append(f"%{search.strip()}%")
+
+    where = ""
+    if conditions:
+        where = "WHERE " + " AND ".join(conditions)
+
+    # Validate sort column
+    valid_sorts = {"filepath", "bpm", "key_camelot", "energy", "genre"}
+    sort_col = sort if sort in valid_sorts else "filepath"
+    sort_dir = "DESC" if order.lower() == "desc" else "ASC"
+
+    # Get total for this filter + search
+    total = conn.execute(f"SELECT COUNT(*) FROM audio_analysis {where}", params).fetchone()[0]
 
     rows = conn.execute(
         f"SELECT filepath, bpm, key_camelot, energy, genre "
         f"FROM audio_analysis {where} "
-        f"ORDER BY filepath LIMIT ? OFFSET ?",
-        (limit, offset),
+        f"ORDER BY {sort_col} {sort_dir} LIMIT ? OFFSET ?",
+        params + [limit, offset],
     ).fetchall()
     conn.close()
 
@@ -484,6 +504,36 @@ def dig_weekly(genres: str = Query(None)):
             ],
         }
     }
+
+
+# ── Audio Streaming ───────────────────────────────────────
+
+
+MIME_MAP = {
+    ".mp3": "audio/mpeg",
+    ".flac": "audio/flac",
+    ".wav": "audio/wav",
+    ".ogg": "audio/ogg",
+    ".m4a": "audio/mp4",
+    ".aac": "audio/aac",
+}
+
+
+@app.get("/api/audio/stream")
+def stream_audio(filepath: str = Query(...)):
+    """Serve an audio file from the library for browser playback."""
+    fp = Path(filepath)
+    if not fp.exists():
+        return {"error": "File not found"}, 404
+
+    suffix = fp.suffix.lower()
+    media_type = MIME_MAP.get(suffix, "application/octet-stream")
+
+    return FileResponse(
+        path=str(fp),
+        media_type=media_type,
+        filename=fp.name,
+    )
 
 
 # ── Run ────────────────────────────────────────────────────

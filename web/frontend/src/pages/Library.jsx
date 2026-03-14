@@ -1,22 +1,52 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { P, F } from "../theme";
 import { Track, Pill, Loader, Sec } from "../components/ui";
 import { fetchApi } from "../hooks/useApi";
-import { Disc3, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Disc3, Search, ChevronLeft, ChevronRight, ArrowUpDown } from "lucide-react";
 
-export default function Library() {
+const SORT_OPTIONS = [
+  { key: "filepath", label: "Name" },
+  { key: "bpm", label: "BPM" },
+  { key: "key_camelot", label: "Key" },
+  { key: "energy", label: "Energy" },
+  { key: "genre", label: "Genre" },
+];
+
+export default function Library({ onNavigate }) {
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [searchDebounced, setSearchDebounced] = useState("");
+  const [sort, setSort] = useState("filepath");
+  const [order, setOrder] = useState("asc");
   const [page, setPage] = useState(0);
   const [tracks, setTracks] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const searchTimer = useRef(null);
 
   const PAGE_SIZE = 30;
 
+  // Debounce search input (300ms)
+  useEffect(() => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => setSearchDebounced(search), 300);
+    return () => clearTimeout(searchTimer.current);
+  }, [search]);
+
+  // Fetch tracks from API with server-side search + sort
   useEffect(() => {
     setLoading(true);
-    fetchApi(`/api/library/tracks?filter=${filter}&offset=${page * PAGE_SIZE}&limit=${PAGE_SIZE}`)
+    const params = new URLSearchParams({
+      filter,
+      offset: String(page * PAGE_SIZE),
+      limit: String(PAGE_SIZE),
+      sort,
+      order,
+    });
+    if (searchDebounced.trim()) {
+      params.set("search", searchDebounced.trim());
+    }
+    fetchApi(`/api/library/tracks?${params}`)
       .then(data => {
         setTracks(data.tracks || []);
         setTotal(data.total || 0);
@@ -26,20 +56,21 @@ export default function Library() {
         setTotal(0);
       })
       .finally(() => setLoading(false));
-  }, [filter, page]);
+  }, [filter, page, searchDebounced, sort, order]);
 
-  // Reset page when filter changes
-  useEffect(() => { setPage(0); }, [filter]);
-
-  // Client-side search filter (on top of server filter)
-  const displayed = search.trim()
-    ? tracks.filter(t =>
-        t.title?.toLowerCase().includes(search.toLowerCase()) ||
-        t.artist?.toLowerCase().includes(search.toLowerCase())
-      )
-    : tracks;
+  // Reset page when filter/search/sort changes
+  useEffect(() => { setPage(0); }, [filter, searchDebounced, sort, order]);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  const toggleSort = (key) => {
+    if (sort === key) {
+      setOrder(o => o === "asc" ? "desc" : "asc");
+    } else {
+      setSort(key);
+      setOrder(key === "bpm" || key === "energy" ? "desc" : "asc");
+    }
+  };
 
   return (
     <div style={{ padding: "20px" }}>
@@ -60,7 +91,7 @@ export default function Library() {
         </div>
       </div>
 
-      {/* Search */}
+      {/* Search — server-side */}
       <div style={{
         display: "flex", alignItems: "center", gap: 8,
         background: P.bgCard, border: `1px solid ${P.border}`, borderRadius: 10,
@@ -70,24 +101,51 @@ export default function Library() {
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search tracks..."
+          placeholder="Search tracks, artists..."
           style={{
             flex: 1, background: "none", border: "none", outline: "none",
             color: P.text, fontFamily: F.b, fontSize: 13,
           }}
         />
+        {search && (
+          <button onClick={() => setSearch("")} style={{
+            background: "none", border: "none", cursor: "pointer",
+            color: P.textMut, fontSize: 12, fontFamily: F.m,
+          }}>clear</button>
+        )}
       </div>
 
-      {/* Filter pills */}
-      <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 16 }}>
-        {[
-          { label: "All", key: "all" },
-          { label: "Complete", key: "complete" },
-          { label: "Attention", key: "partial" },
-          { label: "Missing", key: "missing" },
-        ].map(f => (
-          <Pill key={f.key} label={f.label} active={filter === f.key} onClick={() => setFilter(f.key)} />
-        ))}
+      {/* Filter pills + sort controls */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, gap: 12 }}>
+        <div style={{ display: "flex", gap: 6, overflowX: "auto" }}>
+          {[
+            { label: "All", key: "all" },
+            { label: "Complete", key: "complete" },
+            { label: "Attention", key: "partial" },
+            { label: "Missing", key: "missing" },
+          ].map(f => (
+            <Pill key={f.key} label={f.label} active={filter === f.key} onClick={() => setFilter(f.key)} />
+          ))}
+        </div>
+
+        {/* Sort controls */}
+        <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+          {SORT_OPTIONS.map(s => (
+            <button key={s.key} onClick={() => toggleSort(s.key)} style={{
+              padding: "5px 8px", borderRadius: 6, border: "none",
+              background: sort === s.key ? `${P.terracotta}15` : "transparent",
+              color: sort === s.key ? P.terracotta : P.textMut,
+              fontFamily: F.m, fontSize: 9, letterSpacing: 0.5,
+              cursor: "pointer", display: "flex", alignItems: "center", gap: 3,
+              transition: "all 0.15s ease",
+            }}>
+              {s.label}
+              {sort === s.key && (
+                <span style={{ fontSize: 8 }}>{order === "asc" ? "\u2191" : "\u2193"}</span>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Track list */}
@@ -97,10 +155,10 @@ export default function Library() {
       }}>
         {loading ? <Loader text="Loading tracks..." /> : (
           <>
-            {displayed.map((t, i) => (
+            {tracks.map((t, i) => (
               <Track key={t.filepath || i} t={t} i={page * PAGE_SIZE + i} />
             ))}
-            {displayed.length === 0 && (
+            {tracks.length === 0 && (
               <div style={{ textAlign: "center", padding: 30, color: P.textMut, fontFamily: F.m, fontSize: 12 }}>
                 {search ? "No matching tracks" : "No tracks found. Run a scan first."}
               </div>

@@ -1,4 +1,4 @@
-import { P, F } from "../theme";
+import { P, F, camelotColor, energyColor, energyPct } from "../theme";
 import { usePlayer } from "../hooks/usePlayer";
 import {
   CircleCheck, AlertTriangle, CircleX, ChevronRight, Play,
@@ -86,32 +86,44 @@ export function IssueRow({ icon: Icon, label, value, color }) {
   );
 }
 
-/* ─── Track Card — DJ-first layout: BPM and Key are prominent ─── */
+/* ─── Track Card — DJ-first layout: BPM and Key are prominent, clickable for playback ─── */
 export function Track({ t, i }) {
   const sc = { complete: P.healthy, partial: P.warning, missing: P.critical };
-  const si = { complete: CircleCheck, partial: AlertTriangle, missing: CircleX };
-  const StatusIcon = si[t.status] || CircleX;
+  const player = usePlayer();
+  const isActive = player?.track?.filepath === t.filepath;
   return (
-    <div className="track-row" style={{
-      display: "flex", gap: 12, padding: "13px 0",
-      borderBottom: `1px solid ${P.borderSub}`,
-      alignItems: "center",
-    }}>
-      {/* Track number */}
-      <div style={{
-        width: 28, height: 28, borderRadius: 7, background: P.bgSurface,
+    <div
+      className="track-row"
+      onClick={() => player?.play(t)}
+      style={{
+        display: "flex", gap: 12, padding: "13px 0",
+        borderBottom: `1px solid ${P.borderSub}`,
+        alignItems: "center", cursor: "pointer",
+        background: isActive ? `${P.terracotta}08` : undefined,
+      }}
+    >
+      {/* Track number / play icon on hover */}
+      <div className="track-num" style={{
+        width: 28, height: 28, borderRadius: 7,
+        background: isActive ? `${P.terracotta}18` : P.bgSurface,
         display: "flex", alignItems: "center", justifyContent: "center",
-        flexShrink: 0,
+        flexShrink: 0, position: "relative",
       }}>
-        <span style={{ fontSize: 10, fontFamily: F.m, color: P.textMut, fontWeight: 500 }}>
+        <span className="track-num-text" style={{
+          fontSize: 10, fontFamily: F.m, fontWeight: 500,
+          color: isActive ? P.terracotta : P.textMut,
+        }}>
           {String(i + 1).padStart(2, "0")}
         </span>
+        <Play className="track-play-icon" size={12} color={P.terracotta} fill={P.terracotta}
+          style={{ position: "absolute", display: "none" }} />
       </div>
 
       {/* Title + Artist */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
-          fontSize: 14, fontFamily: F.b, fontWeight: 600, color: P.text,
+          fontSize: 14, fontFamily: F.b, fontWeight: 600,
+          color: isActive ? P.terracotta : P.text,
           marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
         }}>{t.title}</div>
         <div style={{ fontSize: 12, fontFamily: F.b, color: P.textSec }}>{t.artist}</div>
@@ -122,13 +134,35 @@ export function Track({ t, i }) {
         <span className="badge-bpm">{t.bpm}</span>
       )}
 
-      {/* Key — Camelot notation prominent */}
+      {/* Key — Camelot notation with wheel-colored pill */}
       {t.key && (
-        <span className="badge-key">{t.key}</span>
+        <span style={{
+          fontSize: 11, fontFamily: F.m, fontWeight: 600, letterSpacing: 0.5,
+          padding: "3px 8px", borderRadius: 5, flexShrink: 0,
+          color: camelotColor(t.key),
+          background: `${camelotColor(t.key)}12`,
+          border: `1px solid ${camelotColor(t.key)}25`,
+        }}>{t.key}</span>
       )}
 
-      {/* Status indicator */}
-      <StatusIcon size={14} strokeWidth={2.5} color={sc[t.status] || P.textMut} style={{ flexShrink: 0 }} />
+      {/* Energy bar */}
+      {t.energy != null && (
+        <div style={{ width: 40, flexShrink: 0 }} title={`Energy: ${(t.energy * 10).toFixed(1)}`}>
+          <div style={{ height: 4, background: P.bgSurface, borderRadius: 2, overflow: "hidden" }}>
+            <div style={{
+              width: `${energyPct(t.energy)}%`, height: "100%", borderRadius: 2,
+              background: energyColor(t.energy),
+              transition: "width 0.5s ease",
+            }} />
+          </div>
+        </div>
+      )}
+
+      {/* Status icon */}
+      {(() => {
+        const StatusIcon = { complete: CircleCheck, partial: AlertTriangle, missing: CircleX }[t.status] || CircleX;
+        return <StatusIcon size={14} strokeWidth={2} color={sc[t.status] || P.textMut} style={{ flexShrink: 0 }} />;
+      })()}
     </div>
   );
 }
