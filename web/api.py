@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 # Force UTF-8 output for Rich console in submodules
 os.environ["PYTHONIOENCODING"] = "utf-8"
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
@@ -19,7 +19,7 @@ app = FastAPI(title="CrateDigger API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -524,7 +524,7 @@ def stream_audio(filepath: str = Query(...)):
     """Serve an audio file from the library for browser playback."""
     fp = Path(filepath)
     if not fp.exists():
-        return {"error": "File not found"}, 404
+        raise HTTPException(status_code=404, detail="File not found")
 
     suffix = fp.suffix.lower()
     media_type = MIME_MAP.get(suffix, "application/octet-stream")
