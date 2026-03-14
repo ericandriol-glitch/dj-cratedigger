@@ -1,5 +1,8 @@
 """Smoke tests to verify Essentia installation and algorithm availability."""
 
+import pytest
+
+essentia = pytest.importorskip("essentia", reason="Essentia not installed (requires Linux/WSL)")
 
 
 def test_essentia_imports():
