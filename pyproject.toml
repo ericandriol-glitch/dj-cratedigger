@@ -47,11 +47,14 @@ discovery = [
     "musicbrainzngs>=0.7.1",
     "python3-discogs-client>=2.7",
 ]
+player = [
+    "pygame>=2.5.0",
+]
 watch = [
     "watchdog>=3.0.0",
 ]
 all = [
-    "cratedigger[streaming,fingerprint,discovery,watch]",
+    "cratedigger[streaming,fingerprint,discovery,watch,player]",
 ]
 dev = [
     "pytest>=8.0.0",

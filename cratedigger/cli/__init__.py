@@ -15,6 +15,7 @@ from .dig import dig, dig_artist, dig_label, dig_weekly  # noqa: E402, F401
 from .gig import cues, gig  # noqa: E402, F401
 from .scan import fix_all, fix_dupes, fix_filenames, fix_tags, scan  # noqa: E402, F401
 from .streaming import dig_sleeping, spotify, youtube  # noqa: E402, F401
+from .play import play  # noqa: E402, F401
 from .tools import identify, pipeline, profile, report, watch  # noqa: E402, F401
 
 
