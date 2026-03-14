@@ -6,7 +6,7 @@ from typing import Optional
 
 import musicbrainzngs as mb
 
-mb.set_useragent("DJ CrateDigger", "0.1.0", "cratedigger@example.com")
+mb.set_useragent("DJ CrateDigger", "0.1.0", "eric.andriol@gmail.com")
 
 # DJ-relevant genre mappings — normalize MusicBrainz tags to clean genre names
 GENRE_NORMALIZE = {

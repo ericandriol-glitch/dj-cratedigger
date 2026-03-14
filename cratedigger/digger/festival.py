@@ -178,7 +178,7 @@ def _lookup_artist_genres(artist_name: str) -> list[str]:
     """Look up genres for an artist via MusicBrainz tags."""
     try:
         import musicbrainzngs as mb
-        mb.set_useragent("DJ CrateDigger", "0.1.0", "cratedigger@example.com")
+        mb.set_useragent("DJ CrateDigger", "0.1.0", "eric.andriol@gmail.com")
         time.sleep(RATE_LIMIT)
         result = mb.search_artists(artist_name, limit=1)
         artists = result.get("artist-list", [])

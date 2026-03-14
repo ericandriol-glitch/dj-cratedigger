@@ -20,7 +20,7 @@ from cratedigger.scanner import find_audio_files
 def _get_mb():
     """Lazy-load musicbrainzngs to avoid import errors when not installed."""
     import musicbrainzngs as mb
-    mb.set_useragent("DJ CrateDigger", "0.1.0", "cratedigger@example.com")
+    mb.set_useragent("DJ CrateDigger", "0.1.0", "eric.andriol@gmail.com")
     return mb
 
 logger = logging.getLogger(__name__)

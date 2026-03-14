@@ -22,7 +22,7 @@ RATE_LIMIT = 1.1  # MusicBrainz requires >= 1 req/sec
 def _get_mb():
     """Lazy-load musicbrainzngs to avoid import errors when not installed."""
     import musicbrainzngs as mb
-    mb.set_useragent("DJ CrateDigger", "0.1.0", "cratedigger@example.com")
+    mb.set_useragent("DJ CrateDigger", "0.1.0", "eric.andriol@gmail.com")
     return mb
 
 
