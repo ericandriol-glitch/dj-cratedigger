@@ -1,6 +1,7 @@
 import { P, F } from "../theme";
+import { usePlayer } from "../hooks/usePlayer";
 import {
-  CircleCheck, AlertTriangle, CircleX, ChevronRight,
+  CircleCheck, AlertTriangle, CircleX, ChevronRight, Play,
 } from "lucide-react";
 
 /* ─── Waveform ─── */
@@ -32,7 +33,7 @@ export function Ring({ pct, size = 108 }) {
           style={{ transition: "stroke-dashoffset 1.8s cubic-bezier(0.16, 1, 0.3, 1)" }} />
       </svg>
       <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-        <span style={{ fontSize: 28, fontWeight: 800, fontFamily: F.d, color: P.cream, lineHeight: 1, letterSpacing: -1.5 }}>{pct}</span>
+        <span style={{ fontSize: size > 90 ? 28 : 22, fontWeight: 800, fontFamily: F.d, color: P.cream, lineHeight: 1, letterSpacing: -1.5 }}>{pct}</span>
         <span style={{ fontSize: 8, fontFamily: F.m, color: P.textMut, letterSpacing: 2.5, marginTop: 3 }}>SCORE</span>
       </div>
     </div>
@@ -43,18 +44,21 @@ export function Ring({ pct, size = 108 }) {
 export function CBar({ label, value, max, color, icon: Icon }) {
   const pct = max > 0 ? Math.round((value / max) * 100) : 0;
   return (
-    <div style={{ marginBottom: 14 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <Icon size={12} color={color} strokeWidth={2} style={{ opacity: 0.7 }} />
-          <span style={{ fontSize: 12, fontFamily: F.b, color: P.textSec }}>{label}</span>
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+          <Icon size={13} color={color} strokeWidth={2} style={{ opacity: 0.8 }} />
+          <span style={{ fontSize: 12, fontFamily: F.b, color: P.textSec, fontWeight: 500 }}>{label}</span>
         </div>
-        <span style={{ fontSize: 11, fontFamily: F.m, color: pct > 85 ? P.healthy : color }}>{pct}%</span>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+          <span style={{ fontSize: 13, fontFamily: F.m, fontWeight: 600, color: pct > 85 ? P.healthy : color }}>{pct}%</span>
+          <span style={{ fontSize: 9, fontFamily: F.m, color: P.textMut }}>{value}/{max}</span>
+        </div>
       </div>
-      <div style={{ height: 3, background: P.bgSurface, borderRadius: 2, overflow: "hidden" }}>
+      <div style={{ height: 4, background: P.bgSurface, borderRadius: 2, overflow: "hidden" }}>
         <div className="bar-fill" style={{
           width: `${pct}%`, height: "100%", borderRadius: 2,
-          background: `linear-gradient(90deg, ${color}90, ${color})`,
+          background: `linear-gradient(90deg, ${color}70, ${color})`,
         }} />
       </div>
     </div>
@@ -67,7 +71,7 @@ export function IssueRow({ icon: Icon, label, value, color }) {
     <div className="issue-row" style={{
       display: "flex", alignItems: "center", gap: 10,
       background: P.bgCard, border: `1px solid ${P.borderSub}`,
-      borderRadius: 10, padding: "10px 12px", transition: "all 0.2s ease",
+      borderRadius: 10, padding: "10px 12px",
     }}>
       <div style={{
         width: 32, height: 32, borderRadius: 8,
@@ -77,12 +81,12 @@ export function IssueRow({ icon: Icon, label, value, color }) {
         <Icon size={14} color={color} strokeWidth={2.2} />
       </div>
       <span style={{ flex: 1, fontSize: 12, fontFamily: F.b, color: P.textSec }}>{label}</span>
-      <span style={{ fontSize: 17, fontWeight: 800, fontFamily: F.d, color, letterSpacing: -0.5 }}>{value}</span>
+      <span style={{ fontSize: 18, fontWeight: 800, fontFamily: F.d, color, letterSpacing: -0.5 }}>{value}</span>
     </div>
   );
 }
 
-/* ─── Track Card ─── */
+/* ─── Track Card — DJ-first layout: BPM and Key are prominent ─── */
 export function Track({ t, i }) {
   const sc = { complete: P.healthy, partial: P.warning, missing: P.critical };
   const si = { complete: CircleCheck, partial: AlertTriangle, missing: CircleX };
@@ -91,51 +95,40 @@ export function Track({ t, i }) {
     <div className="track-row" style={{
       display: "flex", gap: 12, padding: "13px 0",
       borderBottom: `1px solid ${P.borderSub}`,
-      alignItems: "flex-start", transition: "all 0.15s ease",
+      alignItems: "center",
     }}>
+      {/* Track number */}
       <div style={{
-        width: 30, height: 30, borderRadius: 7, background: P.bgSurface,
+        width: 28, height: 28, borderRadius: 7, background: P.bgSurface,
         display: "flex", alignItems: "center", justifyContent: "center",
-        flexShrink: 0, marginTop: 1,
+        flexShrink: 0,
       }}>
-        <span style={{ fontSize: 11, fontFamily: F.m, color: P.textMut, fontWeight: 500 }}>
+        <span style={{ fontSize: 10, fontFamily: F.m, color: P.textMut, fontWeight: 500 }}>
           {String(i + 1).padStart(2, "0")}
         </span>
       </div>
+
+      {/* Title + Artist */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
           fontSize: 14, fontFamily: F.b, fontWeight: 600, color: P.text,
-          marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
         }}>{t.title}</div>
-        <div style={{ fontSize: 12, fontFamily: F.b, color: P.textSec, marginBottom: 7 }}>{t.artist}</div>
-        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-          {t.key && (
-            <span style={{
-              padding: "2px 8px", borderRadius: 5,
-              background: `${P.mauve}10`, border: `1px solid ${P.mauve}20`,
-              fontSize: 10, fontFamily: F.m, color: P.mauve, letterSpacing: 0.3,
-            }}>{t.key}</span>
-          )}
-          {t.bpm && (
-            <span style={{
-              padding: "2px 8px", borderRadius: 5,
-              background: `${P.azure}10`, border: `1px solid ${P.azure}20`,
-              fontSize: 10, fontFamily: F.m, color: P.azure,
-            }}>{t.bpm}</span>
-          )}
-          <span style={{
-            display: "inline-flex", alignItems: "center", gap: 3,
-            padding: "2px 8px", borderRadius: 5,
-            background: `${sc[t.status]}08`, border: `1px solid ${sc[t.status]}18`,
-            fontSize: 10, fontFamily: F.m, color: sc[t.status],
-            textTransform: "uppercase", letterSpacing: 0.5,
-          }}>
-            <StatusIcon size={9} strokeWidth={2.5} />
-            {t.status}
-          </span>
-        </div>
+        <div style={{ fontSize: 12, fontFamily: F.b, color: P.textSec }}>{t.artist}</div>
       </div>
-      <ChevronRight size={16} color={P.textMut} style={{ marginTop: 8, flexShrink: 0, opacity: 0.4 }} />
+
+      {/* BPM — large and prominent like Rekordbox */}
+      {t.bpm && (
+        <span className="badge-bpm">{t.bpm}</span>
+      )}
+
+      {/* Key — Camelot notation prominent */}
+      {t.key && (
+        <span className="badge-key">{t.key}</span>
+      )}
+
+      {/* Status indicator */}
+      <StatusIcon size={14} strokeWidth={2.5} color={sc[t.status] || P.textMut} style={{ flexShrink: 0 }} />
     </div>
   );
 }
@@ -143,17 +136,18 @@ export function Track({ t, i }) {
 /* ─── Genre Row ─── */
 export function Genre({ name, pct, color }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 11 }}>
-      <div style={{ width: 3, height: 26, background: color, borderRadius: 2, opacity: 0.8, flexShrink: 0 }} />
+    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+      <div style={{ width: 3, height: 28, background: color, borderRadius: 2, opacity: 0.9, flexShrink: 0 }} />
       <div style={{ flex: 1 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
           <span style={{ fontSize: 13, fontFamily: F.b, color: P.text, fontWeight: 500 }}>{name}</span>
-          <span style={{ fontSize: 11, fontFamily: F.m, color }}>{pct}%</span>
+          <span style={{ fontSize: 12, fontFamily: F.m, fontWeight: 600, color }}>{pct}%</span>
         </div>
-        <div style={{ height: 2, background: P.bgSurface, borderRadius: 1 }}>
+        <div style={{ height: 3, background: P.bgSurface, borderRadius: 2 }}>
           <div style={{
-            width: `${Math.min(pct * 4, 100)}%`, height: "100%",
-            background: `linear-gradient(90deg, ${color}60, ${color})`, borderRadius: 1,
+            width: `${Math.min(pct * 2, 100)}%`, height: "100%",
+            background: `linear-gradient(90deg, ${color}50, ${color})`, borderRadius: 2,
+            transition: "width 0.8s cubic-bezier(0.16, 1, 0.3, 1)",
           }} />
         </div>
       </div>
@@ -162,10 +156,10 @@ export function Genre({ name, pct, color }) {
 }
 
 /* ─── Section Divider ─── */
-export function Sec({ label, icon: Icon }) {
+export function Sec({ label, icon: Icon, color = P.terracotta }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, marginTop: 30 }}>
-      {Icon && <Icon size={12} color={P.terracotta} strokeWidth={2.5} />}
+    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, marginTop: 32 }}>
+      {Icon && <Icon size={12} color={color} strokeWidth={2.5} />}
       <span style={{ fontSize: 10, fontFamily: F.m, color: P.textMut, letterSpacing: 2.5, textTransform: "uppercase" }}>{label}</span>
       <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${P.border}, transparent)` }} />
     </div>
@@ -176,22 +170,22 @@ export function Sec({ label, icon: Icon }) {
 export function Pill({ label, active, count, onClick }) {
   return (
     <button onClick={onClick} className="pill" style={{
-      padding: "6px 12px", borderRadius: 7,
-      border: `1px solid ${active ? P.terracotta + "50" : P.borderSub}`,
+      padding: "7px 14px", borderRadius: 8,
+      border: `1px solid ${active ? P.terracotta + "40" : P.borderSub}`,
       background: active ? `${P.terracotta}12` : "transparent",
       color: active ? P.terracotta : P.textMut,
       fontSize: 11, fontFamily: F.m, letterSpacing: 0.3,
       cursor: "pointer", whiteSpace: "nowrap",
-      display: "flex", alignItems: "center", gap: 5,
-      transition: "all 0.15s ease",
+      display: "flex", alignItems: "center", gap: 6,
     }}>
       {label}
       {count !== undefined && (
         <span style={{
           fontSize: 9, fontFamily: F.m,
           background: active ? `${P.terracotta}25` : P.bgSurface,
-          padding: "1px 5px", borderRadius: 4,
+          padding: "1px 6px", borderRadius: 4,
           color: active ? P.terracotta : P.textMut,
+          fontWeight: 600,
         }}>{count}</span>
       )}
     </button>
@@ -203,14 +197,33 @@ export function Loader({ text = "Loading..." }) {
   return (
     <div style={{
       display: "flex", flexDirection: "column", alignItems: "center",
-      justifyContent: "center", padding: "60px 0", gap: 12,
+      justifyContent: "center", padding: "60px 0", gap: 14,
     }}>
       <div style={{
-        width: 24, height: 24, border: `2px solid ${P.border}`,
+        width: 28, height: 28, border: `2px solid ${P.border}`,
         borderTopColor: P.terracotta, borderRadius: "50%",
         animation: "spin 0.8s linear infinite",
       }} />
-      <span style={{ fontSize: 11, fontFamily: F.m, color: P.textMut }}>{text}</span>
+      <span style={{ fontSize: 11, fontFamily: F.m, color: P.textMut, letterSpacing: 0.5 }}>{text}</span>
+    </div>
+  );
+}
+
+/* ─── Card wrapper with glow effect ─── */
+export function Card({ children, className = "", style = {}, hero = false }) {
+  return (
+    <div
+      className={`card-glow ${hero ? "hero-card" : ""} ${className}`}
+      style={{
+        background: P.bgCard,
+        border: `1px solid ${P.border}`,
+        borderRadius: 14,
+        padding: "18px 16px",
+        position: "relative",
+        ...style,
+      }}
+    >
+      {children}
     </div>
   );
 }
