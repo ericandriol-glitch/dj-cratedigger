@@ -316,6 +316,12 @@ export default function App() {
     });
   }, [tab]);
 
+  // Enhanced navigation — accepts optional params (e.g. { filter: "missing", search: "bicep" })
+  const navigate = useCallback((targetTab, params = {}) => {
+    setNavParams(params);
+    setTab(targetTab);
+  }, []);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e) => {
@@ -345,12 +351,6 @@ export default function App() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [cmdOpen, navigate]);
-
-  // Enhanced navigation — accepts optional params (e.g. { filter: "missing", search: "bicep" })
-  const navigate = useCallback((targetTab, params = {}) => {
-    setNavParams(params);
-    setTab(targetTab);
-  }, []);
 
   const PAGE_MAP = {
     home: Home,
