@@ -9,29 +9,58 @@ export function PlayerProvider({ children }) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(0.8);
+  const [error, setError] = useState(null);
   const audioRef = useRef(null);
 
-  // Lazy-create audio element
+  // Lazy-create audio element with proper event listeners
   const getAudio = useCallback(() => {
     if (!audioRef.current) {
       const a = new Audio();
       a.addEventListener("timeupdate", () => setCurrentTime(a.currentTime));
-      a.addEventListener("loadedmetadata", () => setDuration(a.duration));
+      a.addEventListener("loadedmetadata", () => {
+        if (isFinite(a.duration)) setDuration(a.duration);
+      });
       a.addEventListener("ended", () => setPlaying(false));
+      a.addEventListener("error", () => {
+        setError("Failed to load audio");
+        setPlaying(false);
+      });
       audioRef.current = a;
     }
     return audioRef.current;
   }, []);
 
+  // Cleanup audio element on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
   const play = useCallback((t) => {
     const a = getAudio();
+    setError(null);
     const src = `${API}/api/audio/stream?filepath=${encodeURIComponent(t.filepath)}`;
     if (track?.filepath !== t.filepath) {
       a.src = src;
       setTrack(t);
+      setCurrentTime(0);
+      setDuration(0);
     }
     a.volume = volume;
-    a.play();
+    a.play().catch((err) => {
+      // Handle autoplay policy or load errors
+      if (err.name === "NotAllowedError") {
+        setError("Click to enable audio playback");
+      } else {
+        setError("Playback failed");
+      }
+      setPlaying(false);
+    });
     setPlaying(true);
   }, [getAudio, track, volume]);
 
@@ -42,13 +71,23 @@ export function PlayerProvider({ children }) {
 
   const togglePlay = useCallback(() => {
     if (!track) return;
-    if (playing) pause();
-    else { audioRef.current?.play(); setPlaying(true); }
+    if (playing) {
+      pause();
+    } else {
+      const a = audioRef.current;
+      if (a) {
+        a.play().catch(() => setPlaying(false));
+        setPlaying(true);
+      }
+    }
   }, [track, playing, pause]);
 
   const seek = useCallback((time) => {
     const a = audioRef.current;
-    if (a) { a.currentTime = time; setCurrentTime(time); }
+    if (a && isFinite(time)) {
+      a.currentTime = time;
+      setCurrentTime(time);
+    }
   }, []);
 
   const setVol = useCallback((v) => {
@@ -59,7 +98,7 @@ export function PlayerProvider({ children }) {
   // Keyboard: space = toggle
   useEffect(() => {
     const handler = (e) => {
-      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.isContentEditable) return;
       if (e.code === "Space" && track) { e.preventDefault(); togglePlay(); }
     };
     window.addEventListener("keydown", handler);
@@ -67,7 +106,7 @@ export function PlayerProvider({ children }) {
   }, [track, togglePlay]);
 
   return (
-    <PlayerCtx.Provider value={{ track, playing, currentTime, duration, volume, play, pause, togglePlay, seek, setVol }}>
+    <PlayerCtx.Provider value={{ track, playing, currentTime, duration, volume, error, play, pause, togglePlay, seek, setVol }}>
       {children}
     </PlayerCtx.Provider>
   );

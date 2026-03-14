@@ -91,22 +91,23 @@ export function IssueRow({ icon: Icon, label, value, color, onClick }) {
 }
 
 /* ─── Track Card — DJ-first layout with expandable detail ─── */
-import { useState as useTrackState, useEffect as useTrackEffect } from "react";
+import { useState, useEffect } from "react";
 export function Track({ t, i }) {
   const sc = { complete: P.healthy, partial: P.warning, missing: P.critical };
   const player = usePlayer();
   const isActive = player?.track?.filepath === t.filepath;
-  const [expanded, setExpanded] = useTrackState(false);
-  const [related, setRelated] = useTrackState(null);
-  const [relatedLoading, setRelatedLoading] = useTrackState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [related, setRelated] = useState(null);
+  const [relatedLoading, setRelatedLoading] = useState(false);
+  const [relatedError, setRelatedError] = useState(false);
 
   // Fetch related tracks when expanded
-  useTrackEffect(() => {
-    if (expanded && !related && t.filepath && t.bpm) {
+  useEffect(() => {
+    if (expanded && !related && !relatedError && t.filepath && t.bpm) {
       setRelatedLoading(true);
       fetchApi(`/api/library/related?filepath=${encodeURIComponent(t.filepath)}&limit=5`)
         .then(data => setRelated(data.tracks || []))
-        .catch(() => setRelated([]))
+        .catch(() => { setRelated([]); setRelatedError(true); })
         .finally(() => setRelatedLoading(false));
     }
   }, [expanded]);
@@ -246,8 +247,11 @@ export function Track({ t, i }) {
                   ))}
                 </div>
               )}
-              {related && related.length === 0 && (
+              {related && related.length === 0 && !relatedError && (
                 <div style={{ fontSize: 10, fontFamily: F.m, color: P.textMut, padding: "4px 0" }}>No compatible tracks found in library</div>
+              )}
+              {relatedError && (
+                <div style={{ fontSize: 10, fontFamily: F.m, color: P.warning, padding: "4px 0" }}>Failed to load related tracks</div>
               )}
             </div>
           )}

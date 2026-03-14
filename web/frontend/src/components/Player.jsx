@@ -11,11 +11,12 @@ function fmt(s) {
 }
 
 export default function PlayerBar() {
-  const { track, playing, currentTime, duration, volume, togglePlay, seek, setVol } = usePlayer();
+  const { track, playing, currentTime, duration, volume, error, togglePlay, seek, setVol } = usePlayer();
 
   if (!track) return null;
 
-  const pct = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const safeDuration = isFinite(duration) && duration > 0 ? duration : 0;
+  const pct = safeDuration > 0 ? (currentTime / safeDuration) * 100 : 0;
 
   return (
     <div className="player-bar" style={{
@@ -29,7 +30,7 @@ export default function PlayerBar() {
         onClick={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
           const ratio = (e.clientX - rect.left) / rect.width;
-          seek(ratio * duration);
+          if (safeDuration > 0) seek(ratio * safeDuration);
         }}
         style={{
           height: 3, background: P.bgSurface, cursor: "pointer",
@@ -82,6 +83,7 @@ export default function PlayerBar() {
             fontSize: 11, fontFamily: F.b, color: P.textSec,
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
           }}>{track.artist}</div>
+          {error && <div style={{ fontSize: 9, fontFamily: F.m, color: P.warning, marginTop: 1 }}>{error}</div>}
         </div>
 
         {/* BPM + Key badges */}

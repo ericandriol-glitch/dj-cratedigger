@@ -177,7 +177,7 @@ function CommandPalette({ open, onClose, onNavigate }) {
     }
   }, [open]);
 
-  // Debounced search
+  // Debounced search with proper cleanup
   useEffect(() => {
     if (!query.trim()) { setResults([]); return; }
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -202,6 +202,7 @@ function CommandPalette({ open, onClose, onNavigate }) {
       } catch { setResults([]); }
       setLoading(false);
     }, 200);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [query]);
 
   const handleKey = (e) => {
