@@ -6,7 +6,8 @@ A Python CLI tool for DJs to scan, diagnose, clean, and enrich their music libra
 
 **Location:** `C:\Users\eandrio\dj-cratedigger\`
 **Target library:** `C:\Users\eandrio\Downloads\Music` (687 audio files, 8.8 GB)
-**Tech stack:** Python 3.13 | mutagen | click | rich | tinytag | librosa | musicbrainzngs
+**Tech stack:** Python 3.12 | Essentia | mutagen | click | rich | spotipy | requests | PyYAML
+**Runs via WSL** (Python 3.12 + Essentia) — venv at `.venv/` in project root
 
 ---
 
@@ -14,112 +15,151 @@ A Python CLI tool for DJs to scan, diagnose, clean, and enrich their music libra
 
 ```
 dj-cratedigger/
-├── requirements.txt              # mutagen, click, rich, tinytag, librosa, musicbrainzngs
+├── requirements.txt
 ├── cratedigger/
-│   ├── __init__.py               # Package init, version 0.1.0
-│   ├── __main__.py               # python -m cratedigger entry point
-│   ├── cli.py                    # Click CLI — all commands defined here
-│   ├── models.py                 # Data models: TrackMetadata, TrackAnalysis, LibraryReport, HealthScore
-│   ├── scanner.py                # Walk folder tree, find audio files, build TrackAnalysis list
-│   ├── metadata.py               # Read tags via mutagen (MP3/FLAC/MP4/OGG/AIFF) + tinytag fallback
-│   ├── report.py                 # Rich terminal output + markdown file export
+│   ├── __init__.py
+│   ├── __main__.py
+│   ├── cli.py                    # Click CLI — all commands (~1,200 lines)
+│   ├── models.py                 # Data models: TrackMetadata, TrackAnalysis, etc.
+│   ├── scanner.py                # Walk folder tree, find audio files
+│   ├── metadata.py               # Read tags via mutagen + tinytag fallback
+│   ├── report.py                 # Rich terminal output + markdown export
 │   ├── analyzers/
-│   │   ├── filename.py           # Detect bad filenames (junk chars, missing Artist-Title pattern)
-│   │   ├── tags.py               # Detect missing/incomplete metadata tags
-│   │   └── duplicates.py         # Hash-based exact dupes + artist-title near-dupes
+│   │   ├── filename.py           # Detect bad filenames
+│   │   ├── tags.py               # Detect missing/incomplete tags
+│   │   └── duplicates.py         # Hash + fuzzy duplicate detection
 │   ├── fixers/
-│   │   ├── parse_filename.py     # Parse "Artist - Title [320].mp3" into structured components
-│   │   ├── tags.py               # Write tags to files (MP3/MP4/FLAC/OGG) — supports all fields
-│   │   ├── duplicates.py         # Smart keep/remove logic, optional trash folder
-│   │   └── filename.py           # Strip junk from filenames (watermarks, copy suffixes)
-│   ├── audio_analysis/
-│   │   ├── bpm.py                # BPM detection via librosa beat_track (120s from middle of track)
-│   │   ├── key.py                # Key detection via chroma CQT + Krumhansl-Schmuckler algorithm
-│   │   └── analyzer.py           # Combined analyzer — runs BPM + key on a single track
+│   │   ├── parse_filename.py     # Parse "Artist - Title [320].mp3"
+│   │   ├── tags.py               # Write tags to files
+│   │   ├── duplicates.py         # Smart keep/remove logic
+│   │   └── filename.py           # Strip junk from filenames
+│   ├── core/
+│   │   └── essentia_analyzer.py  # Essentia audio analysis (BPM, key, energy, etc.)
+│   ├── utils/
+│   │   ├── db.py                 # SQLite DB management + schema
+│   │   └── config.py             # YAML config loader (~/.cratedigger/config.yaml)
+│   ├── harmonic/
+│   │   ├── camelot.py            # Camelot wheel + harmonic mixing logic
+│   │   └── mix_advisor.py        # Track-to-track mix compatibility
+│   ├── gig/
+│   │   ├── rekordbox_parser.py   # Rekordbox XML/TXT playlist parser
+│   │   ├── preflight.py          # Pre-gig checklist (missing tags, key conflicts)
+│   │   ├── structure.py          # Track structure detection (drops, breakdowns)
+│   │   ├── cue_points.py         # Cue point suggestions
+│   │   └── playlist_writer.py    # Export playlists (M3U/Rekordbox XML)
+│   ├── digger/
+│   │   ├── profile.py            # DJ profile builder
+│   │   └── sleeping.py           # "What Am I Sleeping On?" cross-reference
 │   └── enrichment/
-│       └── musicbrainz.py        # Genre lookup via MusicBrainz (artist-level then recording-level)
-├── tests/
-│   ├── test_scanner.py           # 3 tests — find audio, return paths, skip non-audio
-│   ├── test_metadata.py          # 4 tests — tagged MP3, untagged MP3, WAV, missing file
-│   ├── test_analyzers.py         # 9 tests — filename, tags, duplicates
-│   ├── create_fixtures.py        # Script to generate test fixture audio files
-│   └── fixtures/                 # Small test MP3s and WAV (auto-generated)
-├── sample_output/
-│   └── example_report.md         # Example report from test fixtures
-├── music_report.md               # First scan report (before fixes)
-├── music_report_after.md         # Report after Module 2 fixes
-└── music_report_final.md         # Report after Module 3 analysis
+│       ├── musicbrainz.py        # Genre lookup via MusicBrainz
+│       ├── enrich.py             # AcoustID fingerprint enrichment
+│       ├── spotify.py            # Spotify streaming profile (spotipy + OAuth)
+│       └── youtube.py            # YouTube Music profile (Data API v3)
+└── tests/                        # 266 tests (265 passing)
 ```
+
+---
+
+## Sprint Status (as of 2026-03-13)
+
+### Sprint 1: Essentia Audio Analysis — COMPLETE ✓
+Tasks 1.1-1.5. BPM, key, energy, danceability via Essentia. SQLite storage.
+
+### Sprint 2: DJ Profile + Streaming — COMPLETE ✓
+- 2.1 DJ Profile builder — analyzes library for genre/BPM/key preferences
+- 2.2 Spotify connector — OAuth via spotipy, `user-top-read` scope
+- 2.3 YouTube Music connector — YouTube Data API v3 (not ytmusicapi)
+- 2.4 "Sleeping On" skill — cross-references streaming with USB library
+
+### Sprint 3: Gig Preparation — COMPLETE ✓
+Tasks 3.1-3.5. Rekordbox parser, pre-gig preflight, structure detection, cue points, playlist writer.
+
+### Sprint 4: Discovery — MOSTLY DONE
+- 4.1-4.3 done (MusicBrainz, AcoustID, watcher)
+- 4.4 Label deep-dive — needs Discogs token
+- 4.5 Artist research — needs Discogs + MusicBrainz
+
+### Sprint 5: Automation — PARTIAL
+- 5.1 Watcher + 5.2 Fingerprint done
+- 5.3 Weekly dig — needs Beatport scraping
+- 5.4 Festival scanner — needs EDMTrain API key
+
+**All 22 core tasks complete. Remaining features are extensions.**
 
 ---
 
 ## CLI Commands
 
 ```bash
-cd C:\Users\eandrio\dj-cratedigger
+# Run from WSL: source .venv/bin/activate
 
-# Module 1 — Scan & Report
-python -m cratedigger scan <path> [-o report.md] [-v]
+# Scanning & Reports
+cratedigger scan <path> [-o report.md] [-v]
 
-# Module 2 — Cleanup
-python -m cratedigger fix-tags <path> [--dry-run] [-y]        # Fill artist/title/year from filenames
-python -m cratedigger fix-dupes <path> [--dry-run] [-y] [--trash-dir <dir>]  # Remove duplicates
-python -m cratedigger fix-filenames <path> [--dry-run] [-y]   # Strip junk from filenames
-python -m cratedigger fix-all <path> [--dry-run] [--trash-dir <dir>]  # Run all Module 2 fixes
+# Cleanup
+cratedigger fix-tags <path> [--dry-run] [-y]
+cratedigger fix-dupes <path> [--dry-run] [-y] [--trash-dir <dir>]
+cratedigger fix-filenames <path> [--dry-run] [-y]
+cratedigger fix-all <path> [--dry-run] [--trash-dir <dir>]
 
-# Module 3 — Audio Analysis
-python -m cratedigger analyze <path> [--dry-run] [-y] [-w 4]  # BPM & key detection
+# Audio Analysis
+cratedigger analyze <path> [--dry-run] [-y] [-w 4]
 
-# Module 4 — Genre Enrichment
-python -m cratedigger enrich <path> [--dry-run] [-y] [--rate-limit 1.1]  # MusicBrainz genre lookup
+# Enrichment
+cratedigger enrich <path> [--dry-run] [-y] [--rate-limit 1.1]
+
+# Harmonic Mixing
+cratedigger harmonic <track-path>
+cratedigger mix-check <track1> <track2>
+
+# Gig Preparation
+cratedigger gig parse <playlist-file>
+cratedigger gig preflight <playlist-file>
+cratedigger gig structure <track-path>
+cratedigger gig cues <track-path>
+cratedigger gig build [--genre] [--bpm-range] [--key] [-o output.m3u]
+
+# DJ Profile
+cratedigger profile show
+cratedigger profile build
+
+# Streaming
+cratedigger spotify sync
+cratedigger spotify show
+cratedigger youtube sync
+cratedigger youtube show
+cratedigger dig-sleeping
 ```
-
-All write commands support `--dry-run` (preview only) and `-y` (skip confirmation).
 
 ---
 
-## Module Status
+## Streaming Integration (2026-03-13)
 
-### Module 1: Library Scanner & Health Report — COMPLETE ✓
-- Scans all common DJ audio formats (MP3, FLAC, WAV, AIFF, M4A, AAC, OGG, WMA)
-- Skips hidden files and system folders (.Spotlight, .Trashes, System Volume Information)
-- Reads metadata via mutagen with tinytag fallback — never crashes on corrupt files
-- Filename analysis: detects junk, missing Artist-Title format, playlist rip prefixes, URL watermarks
-- Tag analysis: flags missing critical (artist/title) and useful (genre/BPM/key/year) tags
-- Duplicate detection: partial file hash for exact matches, normalized artist+title for near-dupes
-- Health score formula: filename (40%) + metadata (50%) + not-duplicate (10%)
-- Output: rich terminal table + markdown file
+### Spotify
+- OAuth via spotipy, `user-top-read` scope only (multi-scope broken in Dev Mode)
+- Redirect URI: `http://127.0.0.1:8888/callback` (localhost banned since April 2025)
+- Token cached at `~/.cratedigger/.spotify_cache`
+- Gets: top artists (3 time ranges, 50 each) + top tracks (50)
 
-### Module 2: Library Cleanup — COMPLETE ✓
-- Filename parser: extracts artist, title, bitrate `[320]`, year `(1995)` from DJ filenames
-- Tag fixer: writes extracted artist/title/year to file tags
-- Duplicate cleaner: scores by bitrate tag, metadata completeness, Artist-Title format; optional trash folder
-- Filename cleaner: strips URL watermarks, copy suffixes, multiple underscores
-- All operations are safe: dry-run preview, confirmation prompt, trash folder option
+### YouTube Music
+- YouTube Data API v3 via `requests` (ytmusicapi's internal API broken with OAuth)
+- Device code flow for OAuth (TV/Limited Input device type)
+- Gets: liked videos (music category, up to 200) + playlists
+- Token at `~/.cratedigger/youtube_oauth.json` with auto-refresh
 
-### Module 3: Audio Analysis (BPM & Key) — COMPLETE ✓
-- BPM via librosa beat_track — loads 120s from 30s offset (skips intros)
-- Key via chroma CQT + Krumhansl-Schmuckler correlation against major/minor profiles
-- Multi-threaded with ThreadPoolExecutor (ProcessPool crashes on Windows with librosa)
-- Validated: Dancing Queen = 99.4 BPM (real: 100), A major (correct); 0832am = 123 BPM (tagged: 124)
+### Config
+Location: `~/.cratedigger/config.yaml`
+```yaml
+spotify:
+  client_id: "..."
+  client_secret: "..."
+youtube:
+  client_id: "..."
+  client_secret: "..."
+  auth_json: "~/.cratedigger/youtube_oauth.json"
+```
 
-### Module 4: Genre Enrichment — CODE COMPLETE, NOT YET RUN ON LIBRARY
-- MusicBrainz integration (free, no API key needed)
-- Two-pass: artist-level tags (best coverage) → recording-level tags (fallback)
-- Artist caching reduces API calls (many tracks share same artist)
-- 80+ genre mappings normalized to DJ-friendly names (e.g., "house" → "House", "nu-disco" → "Nu-Disco")
-- Priority system: prefers specific genres (Deep House, Tech House) over generic (Electronic, Dance)
-- Rate-limited at 1.1s per request (MusicBrainz requires ≥1s)
-- **To run:** `python -m cratedigger enrich "C:\Users\eandrio\Downloads\Music" -y`
-- **Expected:** ~6 min for ~300 unique artists, ~60-70% coverage based on testing
-
-### Module 5: Smart Playlists — NOT STARTED
-- Generate playlists by key/BPM/energy for harmonic mixing
-- Camelot wheel integration for key compatibility
-- BPM range filtering for smooth transitions
-
-### Module 6: Web UI — NOT STARTED
-- Streamlit or Gradio interface for non-CLI users
+**Full setup learnings: `STREAMING_SETUP_LEARNINGS.md`**
 
 ---
 
@@ -135,7 +175,27 @@ All write commands support `--dry-run` (preview only) and `-y` (skip confirmatio
 | Duplicates          | 30 groups     | 25 removed      | —               | —                    |
 | Space recovered     | —             | 339 MB          | —               | —                    |
 
-**Duplicate trash location:** `C:\Users\eandrio\Downloads\Music\_duplicates_trash` (can delete once verified)
+---
+
+## What's Next
+
+See `CRATEDIGGER_NEXT_STEPS.md` for the full roadmap. In order:
+
+1. **Discogs label dive** (Task 4.4) — needs personal access token
+2. **Artist research** (Task 4.5) — builds on Discogs + MusicBrainz
+3. **Weekly dig** (Task 5.3) — Beatport scraping
+4. **Festival scanner** (Task 5.4) — EDMTrain API
+5. **Polish** — cli.py split, genre fix, branch merge
+
+---
+
+## Test Suite
+
+266 tests, 265 passing, 1 pre-existing failure (test_reads_tagged_mp3 — WSL fixture issue).
+
+```bash
+source .venv/bin/activate && python -m pytest tests/ -v
+```
 
 ---
 
@@ -144,66 +204,18 @@ All write commands support `--dry-run` (preview only) and `-y` (skip confirmatio
 1. **Read-only by default** — scan never modifies files; all writes require explicit commands
 2. **Dry-run + confirmation** — every write command previews changes and asks before proceeding
 3. **Trash folder for dupes** — duplicates moved, not deleted, so user can restore if needed
-4. **Hash-based dupe detection** — MD5 of first+last 8KB chunks, not just file size (avoids false positives)
-5. **ThreadPoolExecutor over ProcessPool** — ProcessPool crashes on Windows with librosa's native libs
-6. **Artist-level genre lookup** — MusicBrainz recording tags are sparse; artist tags have much better coverage
-7. **DJ-relevant genre priority** — specific subgenres (Deep House, Tech House) preferred over generic (Electronic)
-8. **Filename pattern: `Artist - Title [bitrate].mp3`** — detected as the library's standard naming convention
+4. **SQLite for everything** — audio analysis, profiles, streaming data all in one DB
+5. **YAML config for credentials** — `~/.cratedigger/config.yaml` for all API keys
+6. **YouTube Data API v3 over ytmusicapi** — internal API broke with OAuth in March 2026
+7. **Single Spotify scope** — multi-scope auth broken in Dev Mode as of 2026
+8. **Artist name normalization** — strips "the", punctuation, collapses whitespace for fuzzy matching
 
 ---
 
-## Known Limitations & Future Improvements
+## Known Issues
 
-### BPM/Key Detection
-- 81 files still missing BPM — mostly ambient/beatless tracks where librosa can't lock a beat
-- 115 files missing key — tracks with flat chroma distributions (heavily processed electronic)
-- Could try: `madmom` library (better for electronic music BPM), longer analysis windows, confidence thresholds
-
-### Genre Enrichment
-- MusicBrainz has poor coverage for underground/niche artists (e.g., Abdul Raeva, Kolter)
-- Could add: Discogs API (strong for electronic music), Last.fm API, Spotify API (requires OAuth)
-
-### Remaining Gaps
-- 15 files missing artist/title — no Artist-Title in filename to extract; would need manual tagging or audio fingerprinting (e.g., Shazam/AcoustID)
-- WAV files can't have tags written (format limitation) — 2-3 WAV files in library
-- Year tag is only extracted when present as `(YYYY)` in filename
-
----
-
-## Dependencies
-
-```
-mutagen>=1.47.0        # Audio metadata read/write (MP3, FLAC, WAV, AIFF, AAC, M4A)
-click>=8.1.0           # CLI framework
-rich>=13.0.0           # Terminal output (tables, colors, progress)
-tinytag>=1.9.0         # Fallback metadata reader
-librosa>=0.11.0        # Audio analysis (BPM, chroma/key detection)
-musicbrainzngs>=0.7.1  # MusicBrainz API client
-pytest>=9.0.0          # Testing (dev dependency)
-```
-
----
-
-## Test Suite
-
-16 tests, all passing: `python -m pytest tests/ -v`
-
-- `test_scanner.py` — file discovery, path types, non-audio filtering
-- `test_metadata.py` — tagged MP3, untagged MP3, WAV, missing file handling
-- `test_analyzers.py` — clean/messy filenames, numbered prefixes, complete/missing tags, generic values, near-dupes, no-dupes
-
----
-
-## Quick Start for Next Session
-
-```bash
-cd C:\Users\eandrio\dj-cratedigger
-
-# 1. Run the genre enrichment (was interrupted)
-python -m cratedigger enrich "C:\Users\eandrio\Downloads\Music" -y
-
-# 2. Re-scan to see updated health score
-python -m cratedigger scan "C:\Users\eandrio\Downloads\Music" -o music_report_enriched.md
-
-# 3. Then move on to Module 5 (Smart Playlists) or Module 6 (Web UI)
-```
+- `cli.py` is ~1,200 lines — should be split into command groups
+- Genre field not in `audio_analysis` DB table — playlist builder genre filter limited
+- Structure detection thresholds hardcoded — need tuning on real tracks
+- YouTube test mocks still reference ytmusicapi (tests pass but mock patterns outdated)
+- Google OAuth consent screen in "Testing" mode — tokens expire after 7 days
