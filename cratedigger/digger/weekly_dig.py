@@ -61,6 +61,7 @@ class NewRelease:
     genre: str = ""
     url: str = ""
     release_date: str = ""
+    source: str = "web"
     in_library: bool = False
     artist_in_streaming: bool = False
     artist_in_library: bool = False

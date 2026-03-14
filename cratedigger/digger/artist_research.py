@@ -160,11 +160,15 @@ def _extract_related_artists(artist_data: dict) -> list[dict]:
 
 def _extract_genres(artist_data: dict) -> list[str]:
     """Extract genre tags from MusicBrainz artist data."""
-    from cratedigger.enrichment.musicbrainz import GENRE_NORMALIZE, GENRE_PRIORITY
-
     tags = artist_data.get("tag-list", [])
     if not tags:
         return []
+
+    try:
+        from cratedigger.enrichment.musicbrainz import GENRE_NORMALIZE, GENRE_PRIORITY
+    except (ImportError, ModuleNotFoundError):
+        # musicbrainzngs not installed (e.g. WSL without it) — return raw tags
+        return [tag["name"] for tag in tags[:5]]
 
     normalized = []
     for tag in tags:
