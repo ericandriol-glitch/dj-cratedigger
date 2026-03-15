@@ -297,10 +297,12 @@ def enrich(path: str, dry_run: bool, yes: bool, rate_limit: float) -> None:
     success, errors = apply_tag_fixes(fixes)
 
     # Also persist genres to the DB for playlist builder
-    from ..utils.db import update_genres
+    from ..utils.db import get_connection, update_genres
     genre_map = {str(f): result.genre for f, result in lookups if result.genre}
     if genre_map:
-        update_genres(genre_map)
+        conn = get_connection()
+        update_genres(conn, genre_map)
+        conn.close()
 
     console.print(f"\n  [green]Wrote genre to {success} files.[/green]")
     if errors:

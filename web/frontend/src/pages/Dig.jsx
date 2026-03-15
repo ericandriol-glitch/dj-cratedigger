@@ -66,7 +66,7 @@ function LabelResearch() {
       if (e.name === "AbortError") {
         // User cancelled — don't show error
       } else {
-        setError("Search failed — check the API is running on port 8000");
+        setError(`Search failed: ${e.message}`);
       }
     }
     clearInterval(timerRef.current);

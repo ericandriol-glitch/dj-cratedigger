@@ -53,8 +53,13 @@ player = [
 watch = [
     "watchdog>=3.0.0",
 ]
+web = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0",
+    "cratedigger[discovery,streaming]",
+]
 all = [
-    "cratedigger[streaming,fingerprint,discovery,watch,player]",
+    "cratedigger[streaming,fingerprint,discovery,watch,player,web]",
 ]
 dev = [
     "pytest>=8.0.0",
