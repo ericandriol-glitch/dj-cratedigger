@@ -345,7 +345,7 @@ function FestivalScanner() {
       if (!data.report) setError("No results");
     } catch (e) {
       if (e.name !== "AbortError") {
-        setError("Scan failed — check the API is running on port 8000");
+        setError("Scan failed — check the API is running");
       }
     }
     setLoading(false);

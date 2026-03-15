@@ -18,6 +18,7 @@ from .streaming import dig_sleeping, spotify, youtube  # noqa: E402, F401
 from .play import play  # noqa: E402, F401
 from .tools import identify, pipeline, profile, report, watch  # noqa: E402, F401
 from .intake import intake  # noqa: E402, F401
+from .preflight_cmd import preflight  # noqa: E402, F401
 
 
 def main():

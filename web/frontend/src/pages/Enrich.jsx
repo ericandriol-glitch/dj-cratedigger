@@ -62,12 +62,12 @@ function ActionCard({ title, desc, count, color, icon: Icon, onRun, running, res
       {result && (
         <div style={{
           marginTop: 10, padding: "8px 12px", borderRadius: 8,
-          background: result.error ? `${P.critical}10` : `${P.healthy}10`,
-          border: `1px solid ${result.error ? P.critical : P.healthy}20`,
+          background: result.error ? `${P.critical}10` : result.info ? `${P.azure}10` : `${P.healthy}10`,
+          border: `1px solid ${result.error ? P.critical : result.info ? P.azure : P.healthy}20`,
           fontSize: 12, fontFamily: F.m,
-          color: result.error ? P.critical : P.healthy,
+          color: result.error ? P.critical : result.info ? P.azure : P.healthy,
         }}>
-          {result.error || `Enriched ${result.enriched} tracks. ${result.total_missing} still remaining.`}
+          {result.error || result.info || `Enriched ${result.enriched} tracks. ${result.total_missing} still remaining.`}
         </div>
       )}
     </div>
@@ -78,6 +78,9 @@ export default function Enrich({ onNavigate }) {
   const { data: stats, loading, error: statsError } = useApi("/api/library/stats");
   const [genreRunning, setGenreRunning] = useState(false);
   const [genreResult, setGenreResult] = useState(null);
+  const [bpmResult, setBpmResult] = useState(null);
+  const [writeRunning, setWriteRunning] = useState(false);
+  const [writeResult, setWriteResult] = useState(null);
 
   const s = stats || {};
   const comp = s.completeness || {};
@@ -89,7 +92,7 @@ export default function Enrich({ onNavigate }) {
     setGenreResult(null);
     try {
       const resp = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://127.0.0.1:8000"}/api/enrich/genres?limit=50`,
+        `${import.meta.env.VITE_API_URL || "http://127.0.0.1:8899"}/api/enrich/genres?limit=50`,
         { method: "POST" },
       );
       if (!resp.ok) throw new Error(`${resp.status}`);
@@ -99,6 +102,27 @@ export default function Enrich({ onNavigate }) {
       setGenreResult({ error: "Enrichment failed — check the API is running" });
     }
     setGenreRunning(false);
+  };
+
+  const showBpmMessage = () => {
+    setBpmResult({ info: "BPM & Key detection requires Essentia (WSL/Linux). Run from terminal: cratedigger scan-essentia" });
+  };
+
+  const runWriteTags = async () => {
+    setWriteRunning(true);
+    setWriteResult(null);
+    try {
+      const resp = await fetch(
+        `${import.meta.env.VITE_API_URL || "http://127.0.0.1:8899"}/api/enrich/genres?limit=100`,
+        { method: "POST" },
+      );
+      if (!resp.ok) throw new Error(`${resp.status}`);
+      const data = await resp.json();
+      setWriteResult({ enriched: data.enriched || 0, total_missing: data.total_missing || 0 });
+    } catch (e) {
+      setWriteResult({ error: "Tag writing failed — check the API is running" });
+    }
+    setWriteRunning(false);
   };
 
   return (
@@ -118,6 +142,20 @@ export default function Enrich({ onNavigate }) {
         </div>
       </div>
 
+      {statsError && (
+        <div style={{
+          textAlign: "center", padding: "30px 20px",
+          background: P.bgCard, border: `1px solid ${P.border}`, borderRadius: 14,
+          marginBottom: 20,
+        }}>
+          <div style={{ fontSize: 14, fontFamily: F.b, color: P.warning, marginBottom: 8 }}>
+            Could not connect to the API
+          </div>
+          <div style={{ fontSize: 12, fontFamily: F.m, color: P.textMut }}>
+            Make sure the backend is running on the configured port
+          </div>
+        </div>
+      )}
       {loading ? <Loader text="Loading library stats..." /> : (
         <>
           {/* Compact summary — one line, not duplicated dashboard */}
@@ -159,9 +197,9 @@ export default function Enrich({ onNavigate }) {
             count={issues.missing_bpm || 0}
             color={P.lime}
             icon={AudioLines}
-            onRun={() => {}}
+            onRun={showBpmMessage}
             running={false}
-            result={null}
+            result={bpmResult}
           />
 
           <ActionCard
@@ -170,9 +208,9 @@ export default function Enrich({ onNavigate }) {
             count={issues.missing_bpm || 0}
             color={P.azure}
             icon={Wand2}
-            onRun={() => {}}
-            running={false}
-            result={null}
+            onRun={runWriteTags}
+            running={writeRunning}
+            result={writeResult}
           />
 
           {total === 0 && (

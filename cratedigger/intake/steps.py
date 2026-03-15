@@ -30,6 +30,10 @@ def build_suggested_filename(track: IntakeTrack) -> str | None:
     clean_title = _sanitize_filename(track.title)
     if not clean_artist or not clean_title:
         return None
+    # Strip artist prefix from title if already present (e.g., "A-ha - Take On Me")
+    prefix = f"{clean_artist} - "
+    if clean_title.lower().startswith(prefix.lower()):
+        clean_title = clean_title[len(prefix):]
     ext = track.filepath.suffix
     return f"{clean_artist} - {clean_title}{ext}"
 

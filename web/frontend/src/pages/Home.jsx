@@ -1,19 +1,23 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { P, F, genreColor } from "../theme";
-import { useApi } from "../hooks/useApi";
+import { useApi, fetchApi } from "../hooks/useApi";
 import {
   Ring, CBar, IssueRow, Track, Genre, Sec, Pill, Loader, Waveform, Card,
 } from "../components/ui";
 import {
   Radio, SlidersHorizontal, Target, Disc3,
   AudioLines, Hash, Tag, Image, Fingerprint, Calendar, Music,
-  HardDrive, Search, RotateCw, ArrowUpRight,
+  HardDrive, Search, RotateCw, ArrowUpRight, Loader2, FolderOpen,
 } from "lucide-react";
 
 export default function Home({ onNavigate }) {
   const [filter, setFilter] = useState("all");
+  const [scanning, setScanning] = useState(false);
+  const [scanResult, setScanResult] = useState(null);
+  const [scanPath, setScanPath] = useState("");
+  const [showScanModal, setShowScanModal] = useState(false);
 
-  const { data: stats, loading: statsLoading } = useApi("/api/library/stats");
+  const { data: stats, loading: statsLoading, error: statsError } = useApi("/api/library/stats");
   const { data: genreData, loading: genresLoading } = useApi("/api/library/genres");
   const { data: trackData, loading: tracksLoading } = useApi(
     `/api/library/tracks?filter=${filter}&limit=20`
@@ -25,6 +29,30 @@ export default function Home({ onNavigate }) {
   const genres = genreData?.genres || [];
   const tracks = trackData?.tracks || [];
   const trackTotal = trackData?.total || 0;
+
+  const runScan = async () => {
+    if (!scanPath.trim()) return;
+    setScanning(true);
+    setScanResult(null);
+    try {
+      const resp = await fetch(
+        `${import.meta.env.VITE_API_URL || "http://127.0.0.1:8899"}/api/scan?path=${encodeURIComponent(scanPath.trim())}`,
+        { method: "POST" },
+      );
+      if (!resp.ok) throw new Error(`${resp.status}`);
+      const data = await resp.json();
+      if (data.error) {
+        setScanResult({ error: data.error });
+      } else {
+        setScanResult({ success: `Scanned ${data.scanned} tracks from ${data.total_files} files` });
+        // Refresh the page data after a short delay
+        setTimeout(() => window.location.reload(), 1500);
+      }
+    } catch (e) {
+      setScanResult({ error: "Scan failed — check the API is running" });
+    }
+    setScanning(false);
+  };
 
   return (
     <>
@@ -53,7 +81,7 @@ export default function Home({ onNavigate }) {
             }}>
               <Search size={15} color={P.textSec} strokeWidth={2} />
             </button>
-            <button style={{
+            <button onClick={() => setShowScanModal(true)} style={{
               padding: "8px 16px", background: P.terracotta, border: "none", borderRadius: 9,
               color: "#fff", fontFamily: F.d, fontSize: 12, fontWeight: 700, letterSpacing: 0.3,
               boxShadow: `0 4px 20px ${P.terracotta}25`,
@@ -103,6 +131,20 @@ export default function Home({ onNavigate }) {
       {/* ═══ CONTENT ═══ */}
       <div style={{ padding: "0 20px" }}>
 
+        {statsError && (
+          <div style={{
+            textAlign: "center", padding: "40px 20px",
+            background: P.bgCard, border: `1px solid ${P.border}`, borderRadius: 14,
+            marginTop: 20,
+          }}>
+            <div style={{ fontSize: 14, fontFamily: F.b, color: P.warning, marginBottom: 8 }}>
+              Could not connect to the API
+            </div>
+            <div style={{ fontSize: 12, fontFamily: F.m, color: P.textMut }}>
+              Make sure the backend is running on the configured port
+            </div>
+          </div>
+        )}
         {statsLoading ? <Loader text="Loading library stats..." /> : (
           <>
             {/* Library Health — hero treatment */}
@@ -232,6 +274,73 @@ export default function Home({ onNavigate }) {
           </span>
         </div>
       </div>
+
+      {/* Scan modal */}
+      {showScanModal && (
+        <div onClick={() => { if (!scanning) setShowScanModal(false); }} style={{
+          position: "fixed", inset: 0, zIndex: 200,
+          background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)",
+          display: "flex", justifyContent: "center", alignItems: "center",
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            width: "100%", maxWidth: 440,
+            background: P.bgElevated, border: `1px solid ${P.border}`,
+            borderRadius: 16, padding: "24px",
+            boxShadow: "0 24px 80px rgba(0,0,0,0.5)",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+              <FolderOpen size={20} color={P.terracotta} />
+              <span style={{ fontSize: 18, fontWeight: 700, fontFamily: F.d, color: P.cream }}>Scan Library</span>
+            </div>
+            <div style={{ fontSize: 12, fontFamily: F.b, color: P.textSec, marginBottom: 14, lineHeight: 1.6 }}>
+              Enter the folder path containing your audio files (MP3, FLAC, WAV, etc.)
+            </div>
+            <input
+              value={scanPath}
+              onChange={e => setScanPath(e.target.value)}
+              placeholder="e.g. /mnt/c/Users/DJ/Music"
+              disabled={scanning}
+              onKeyDown={e => { if (e.key === "Enter") runScan(); }}
+              style={{
+                width: "100%", padding: "10px 14px", borderRadius: 10,
+                background: P.bgCard, border: `1px solid ${P.border}`,
+                color: P.text, fontFamily: F.m, fontSize: 13,
+                outline: "none", boxSizing: "border-box", marginBottom: 14,
+              }}
+            />
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button onClick={() => { if (!scanning) { setShowScanModal(false); setScanResult(null); } }} style={{
+                padding: "8px 16px", borderRadius: 8, border: `1px solid ${P.border}`,
+                background: "transparent", color: P.textSec,
+                fontFamily: F.d, fontSize: 12, fontWeight: 600, cursor: "pointer",
+              }}>
+                Cancel
+              </button>
+              <button onClick={runScan} disabled={scanning || !scanPath.trim()} style={{
+                padding: "8px 20px", borderRadius: 8, border: "none",
+                background: scanning || !scanPath.trim() ? P.bgSurface : P.terracotta,
+                color: scanning || !scanPath.trim() ? P.textMut : "#fff",
+                fontFamily: F.d, fontSize: 12, fontWeight: 700,
+                cursor: scanning || !scanPath.trim() ? "not-allowed" : "pointer",
+                display: "flex", alignItems: "center", gap: 6,
+              }}>
+                {scanning ? <><Loader2 size={13} className="spin" /> Scanning...</> : <><RotateCw size={13} strokeWidth={2.5} /> Scan</>}
+              </button>
+            </div>
+            {scanResult && (
+              <div style={{
+                marginTop: 12, padding: "8px 12px", borderRadius: 8,
+                background: scanResult.error ? `${P.critical}10` : `${P.healthy}10`,
+                border: `1px solid ${scanResult.error ? P.critical : P.healthy}20`,
+                fontSize: 12, fontFamily: F.m,
+                color: scanResult.error ? P.critical : P.healthy,
+              }}>
+                {scanResult.error || scanResult.success}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }

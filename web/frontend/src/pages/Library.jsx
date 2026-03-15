@@ -26,8 +26,10 @@ export default function Library({ onNavigate, navParams = {} }) {
   const [order, setOrder] = useState("asc");
   const [page, setPage] = useState(0);
   const [tracks, setTracks] = useState([]);
-  const [total, setTotal] = useState(0);
+  const [total, setTotal] = useState(0);       // filtered total
+  const [totalAll, setTotalAll] = useState(0);  // unfiltered total
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
   const searchTimer = useRef(null);
 
   const PAGE_SIZE = 30;
@@ -55,6 +57,13 @@ export default function Library({ onNavigate, navParams = {} }) {
     }
   }, [filter, searchDebounced, sort, order]);
 
+  // Fetch unfiltered total for header display
+  useEffect(() => {
+    fetchApi("/api/library/tracks?filter=all&limit=1")
+      .then(data => setTotalAll(data.total || 0))
+      .catch(() => {});
+  }, []);
+
   // Fetch tracks from API with server-side search + sort
   useEffect(() => {
     setLoading(true);
@@ -68,6 +77,7 @@ export default function Library({ onNavigate, navParams = {} }) {
     if (searchDebounced.trim()) {
       params.set("search", searchDebounced.trim());
     }
+    setFetchError(null);
     fetchApi(`/api/library/tracks?${params}`)
       .then(data => {
         setTracks(data.tracks || []);
@@ -77,6 +87,7 @@ export default function Library({ onNavigate, navParams = {} }) {
         console.error("Track fetch failed:", err);
         setTracks([]);
         setTotal(0);
+        setFetchError("Could not load tracks — check the API is running");
       })
       .finally(() => setLoading(false));
   }, [filter, page, searchDebounced, sort, order]);
@@ -106,7 +117,9 @@ export default function Library({ onNavigate, navParams = {} }) {
         <div>
           <div style={{ fontSize: 22, fontWeight: 700, fontFamily: F.d, color: P.cream }}>Library</div>
           <div style={{ fontSize: 11, fontFamily: F.m, color: P.textMut }}>
-            {total.toLocaleString()} tracks
+            {(filter !== "all" || searchDebounced) && totalAll > 0
+              ? `${total.toLocaleString()} of ${totalAll.toLocaleString()} tracks`
+              : `${total.toLocaleString()} tracks`}
           </div>
         </div>
       </div>
@@ -175,10 +188,19 @@ export default function Library({ onNavigate, navParams = {} }) {
       }}>
         {loading ? <Loader text="Loading tracks..." /> : (
           <>
+            {fetchError && (
+              <div style={{
+                textAlign: "center", padding: "20px", marginBottom: 10,
+                background: `${P.warning}08`, border: `1px solid ${P.warning}20`, borderRadius: 10,
+                fontSize: 12, fontFamily: F.m, color: P.warning,
+              }}>
+                {fetchError}
+              </div>
+            )}
             {tracks.map((t, i) => (
               <Track key={t.filepath || i} t={t} i={page * PAGE_SIZE + i} />
             ))}
-            {tracks.length === 0 && (
+            {tracks.length === 0 && !fetchError && (
               <div style={{ textAlign: "center", padding: "30px 0" }}>
                 {search ? (
                   <div style={{ color: P.textMut, fontFamily: F.m, fontSize: 12 }}>
