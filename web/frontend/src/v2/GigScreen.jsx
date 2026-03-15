@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import {
   SlidersHorizontal, Music, Zap, Activity, Volume2,
   Radio, Clock, Hash, Target, Scan, HardDrive,
-  CircleCheck, AlertTriangle,
+  CircleCheck, AlertTriangle, CircleX, ClipboardList, User,
 } from "lucide-react";
 import { P, F } from "./theme";
 import { EnergyBar, ThemeHeader, camelotColor } from "./components";
@@ -12,6 +12,7 @@ export default function GigScreen({ nav, isDesktop }) {
   const [zone, setZone] = useState("all");
   const [tracks, setTracks] = useState(null);
   const [error, setError] = useState(false);
+  const [view, setView] = useState("crate"); // "crate" | "checklist"
 
   useEffect(() => {
     fetchTracks({ limit: 30, sort: "energy", order: "desc" })
@@ -103,6 +104,27 @@ export default function GigScreen({ nav, isDesktop }) {
           />
           <div style={{ display: "flex", gap: 8 }}>
             <button
+              onClick={() => setView("checklist")}
+              style={{
+                background: view === "checklist" ? P.terra + "18" : P.bgCard,
+                border: `1px solid ${view === "checklist" ? P.terra + "40" : P.border}`,
+                borderRadius: 10,
+                padding: "10px 20px",
+                color: view === "checklist" ? P.terra : P.cream,
+                fontSize: 12,
+                fontFamily: F.d,
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              <ClipboardList size={14} />
+              Checklist
+            </button>
+            <button
+              onClick={() => setView("crate")}
               style={{
                 background: P.bgCard,
                 border: `1px solid ${P.border}`,
@@ -206,6 +228,41 @@ export default function GigScreen({ nav, isDesktop }) {
           >
             Deep House Night
           </div>
+          {/* Profile-powered indicator (Gap 7) */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              marginTop: 8,
+              padding: "5px 8px",
+              background: P.bgSurface,
+              borderRadius: 6,
+              width: "fit-content",
+            }}
+          >
+            <User size={9} color={P.text3} />
+            <span style={{ fontSize: 10, fontFamily: F.b, color: P.text3 }}>
+              Filtering for melodic-techno, deep-house
+            </span>
+            <span style={{ fontSize: 9, fontFamily: F.m, color: P.text3, opacity: 0.6 }}>
+              (from your profile)
+            </span>
+            <button
+              style={{
+                background: "none",
+                border: "none",
+                color: P.terra,
+                fontSize: 10,
+                fontFamily: F.b,
+                cursor: "pointer",
+                padding: 0,
+                textDecoration: "underline",
+              }}
+            >
+              Change
+            </button>
+          </div>
         </div>
 
         {/* Stats row */}
@@ -273,7 +330,97 @@ export default function GigScreen({ nav, isDesktop }) {
         </div>
       </div>
 
+      {/* Checklist view (Gap 6) */}
+      {view === "checklist" && (
+        <div
+          style={{
+            background: P.bgCard,
+            borderRadius: 14,
+            padding: isDesktop ? "24px 28px" : "18px 16px",
+            border: `1px solid ${P.terra}20`,
+            marginBottom: 16,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
+            <ClipboardList size={16} color={P.terra} />
+            <span style={{ fontSize: 12, fontFamily: F.m, color: P.terra, letterSpacing: 1 }}>
+              GIG CHECKLIST: Saturday at Warehouse
+            </span>
+          </div>
+
+          {[
+            { status: "pass", icon: CircleCheck, color: P.green, label: "Crate finalized (87 tracks)" },
+            { status: "pass", icon: CircleCheck, color: P.green, label: "Energy zones covered (warm: 14, groove: 24, build: 31, peak: 18)" },
+            { status: "pass", icon: CircleCheck, color: P.green, label: "All tracks on USB" },
+            { status: "warn", icon: AlertTriangle, color: P.warn, label: "Hot cues: 71/87 \u2014 16 tracks need cue points" },
+            { status: "fail", icon: CircleX, color: P.terra, label: "Practice: 2/5 hard transitions drilled" },
+          ].map((item, i) => {
+            const Icon = item.icon;
+            return (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: isDesktop ? "12px 16px" : "10px 12px",
+                  background: P.bgSurface,
+                  borderRadius: 10,
+                  border: `1px solid ${item.color}15`,
+                  marginBottom: 4,
+                }}
+              >
+                <Icon size={16} color={item.color} style={{ flexShrink: 0 }} />
+                <span style={{ fontSize: 13, fontFamily: F.b, color: P.cream }}>{item.label}</span>
+              </div>
+            );
+          })}
+
+          {/* Verdict */}
+          <div
+            style={{
+              marginTop: 14,
+              background: P.warn + "10",
+              borderRadius: 10,
+              padding: isDesktop ? "14px 18px" : "12px 14px",
+              border: `1px solid ${P.warn}20`,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+              <Target size={12} color={P.warn} />
+              <span style={{ fontSize: 10, fontFamily: F.m, color: P.warn, letterSpacing: 1 }}>VERDICT</span>
+            </div>
+            <div style={{ fontSize: 13, fontFamily: F.b, color: P.cream, lineHeight: 1.5 }}>
+              Almost ready. Set cue points for 16 tracks and practice 3 more transitions.
+            </div>
+          </div>
+
+          <button
+            onClick={() => setView("crate")}
+            style={{
+              marginTop: 14,
+              background: P.bgCard,
+              border: `1px solid ${P.border}`,
+              borderRadius: 10,
+              padding: "10px 20px",
+              color: P.text2,
+              fontSize: 12,
+              fontFamily: F.d,
+              fontWeight: 600,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            <Music size={14} />
+            Back to Crate
+          </button>
+        </div>
+      )}
+
       {/* Energy zone tabs */}
+      {view === "crate" && (<>
       <div
         style={{
           display: "flex",
@@ -531,10 +678,33 @@ export default function GigScreen({ nav, isDesktop }) {
           )}
         </div>
       ))}
+      </>)}
 
       {/* Action buttons — only on mobile (desktop has them in header) */}
-      {!isDesktop && (
+      {!isDesktop && view === "crate" && (
         <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+          <button
+            onClick={() => setView("checklist")}
+            style={{
+              flex: 1,
+              background: P.bgCard,
+              border: `1px solid ${P.border}`,
+              borderRadius: 10,
+              padding: "12px",
+              color: P.cream,
+              fontSize: 12,
+              fontFamily: F.d,
+              fontWeight: 600,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 4,
+            }}
+          >
+            <ClipboardList size={14} />
+            Checklist
+          </button>
           <button
             style={{
               flex: 1,

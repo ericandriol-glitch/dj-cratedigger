@@ -3,7 +3,7 @@ import {
   Search, Users, Globe, MapPin, Tag, Play,
   Heart, Star, Calendar, Disc3, Download,
   CircleCheck, CircleX, AlertTriangle, ListMusic,
-  ChevronRight,
+  ChevronRight, User, Loader,
 } from "lucide-react";
 import { P, F } from "./theme";
 import { Badge, SourceDot, ThemeHeader } from "./components";
@@ -64,8 +64,56 @@ export default function DigScreen({ nav, isDesktop }) {
 }
 
 function DiscoverContent({ isDesktop }) {
+  const [sessionActive, setSessionActive] = useState(false);
+  const [sessionStep, setSessionStep] = useState(0);
+
+  const startSession = () => {
+    setSessionActive(true);
+    setSessionStep(0);
+    const steps = [1, 2, 3, 4, 5];
+    steps.forEach((s, i) => {
+      setTimeout(() => setSessionStep(s), (i + 1) * 900);
+    });
+  };
+
   return (
     <>
+      {/* Profile-powered indicator (Gap 7) */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          marginBottom: 12,
+          padding: "6px 10px",
+          background: P.bgSurface,
+          borderRadius: 8,
+          width: "fit-content",
+        }}
+      >
+        <User size={10} color={P.text3} />
+        <span style={{ fontSize: 10, fontFamily: F.b, color: P.text3 }}>
+          Showing artists in your styles
+        </span>
+        <span style={{ fontSize: 9, fontFamily: F.m, color: P.text3, opacity: 0.6 }}>
+          (from your profile)
+        </span>
+        <button
+          style={{
+            background: "none",
+            border: "none",
+            color: P.azure,
+            fontSize: 10,
+            fontFamily: F.b,
+            cursor: "pointer",
+            padding: 0,
+            textDecoration: "underline",
+          }}
+        >
+          Change
+        </button>
+      </div>
+
       {/* Search bar + quick filter pills — row on desktop, stacked on mobile */}
       <div
         style={
@@ -352,14 +400,14 @@ function DiscoverContent({ isDesktop }) {
           </div>
         </div>
 
-        {/* Weekly dig card */}
+        {/* Weekly dig card + Session stepper */}
         <div
           style={{
             background: P.bgCard,
             borderRadius: 14,
             padding: isDesktop ? "20px" : "16px",
             marginTop: isDesktop ? 0 : 12,
-            border: `1px solid ${P.border}`,
+            border: `1px solid ${sessionActive ? P.azure + "40" : P.border}`,
             ...(isDesktop ? { flex: 2 } : {}),
           }}
         >
@@ -383,39 +431,133 @@ function DiscoverContent({ isDesktop }) {
               WEEKLY DIG
             </span>
           </div>
-          <div
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              fontFamily: F.d,
-              color: P.cream,
-              marginTop: 4,
-            }}
-          >
-            8 new finds from followed artists
-          </div>
-          <button
-            style={{
-              width: "100%",
-              background: P.azure + "15",
-              border: `1px solid ${P.azure}30`,
-              borderRadius: 10,
-              padding: "10px",
-              marginTop: 12,
-              color: P.azure,
-              fontSize: 12,
-              fontFamily: F.d,
-              fontWeight: 600,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-            }}
-          >
-            <Search size={14} />
-            Start dig session
-          </button>
+
+          {!sessionActive ? (
+            <>
+              <div
+                style={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                  fontFamily: F.d,
+                  color: P.cream,
+                  marginTop: 4,
+                }}
+              >
+                8 new finds from followed artists
+              </div>
+              <button
+                onClick={startSession}
+                style={{
+                  width: "100%",
+                  background: P.azure + "15",
+                  border: `1px solid ${P.azure}30`,
+                  borderRadius: 10,
+                  padding: "10px",
+                  marginTop: 12,
+                  color: P.azure,
+                  fontSize: 12,
+                  fontFamily: F.d,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                }}
+              >
+                <Search size={14} />
+                Start dig session
+              </button>
+            </>
+          ) : (
+            <div style={{ marginTop: 8 }}>
+              {[
+                { label: "Scanning followed artists...", result: "14 found" },
+                { label: "Checking new releases...", result: "8 found" },
+                { label: "Sleeping on analysis...", result: "5 found" },
+                { label: "Deduplicating...", result: "20 unique (7 removed)" },
+                { label: "Library cross-reference...", result: "11 new to you" },
+              ].map((step, i) => {
+                const done = sessionStep > i;
+                const active = sessionStep === i;
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      marginBottom: 6,
+                      opacity: done || active ? 1 : 0.3,
+                    }}
+                  >
+                    <div style={{ width: 20, display: "flex", justifyContent: "center" }}>
+                      {done ? (
+                        <CircleCheck size={14} color={P.azure} />
+                      ) : active ? (
+                        <Loader size={14} color={P.azure} style={{ animation: "spin 1s linear infinite" }} />
+                      ) : (
+                        <div
+                          style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: "50%",
+                            border: `1px solid ${P.text3}`,
+                          }}
+                        />
+                      )}
+                    </div>
+                    <span style={{ fontSize: 11, fontFamily: F.b, color: done ? P.cream : P.text3, flex: 1 }}>
+                      Step {i + 1}: {step.label}
+                    </span>
+                    {done && (
+                      <span style={{ fontSize: 10, fontFamily: F.m, color: P.azure }}>
+                        {step.result}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+              <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+
+              {sessionStep >= 5 && (
+                <div style={{ marginTop: 12 }}>
+                  <div
+                    style={{
+                      fontSize: 16,
+                      fontWeight: 800,
+                      fontFamily: F.d,
+                      color: P.azure,
+                      marginBottom: 8,
+                    }}
+                  >
+                    Results: 11 new discoveries
+                  </div>
+                  <button
+                    style={{
+                      width: "100%",
+                      background: P.azure,
+                      border: "none",
+                      borderRadius: 10,
+                      padding: "10px",
+                      color: P.cream,
+                      fontSize: 12,
+                      fontFamily: F.d,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 6,
+                    }}
+                  >
+                    <Star size={14} />
+                    Preview & Save to Wishlist
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </>
@@ -423,81 +565,140 @@ function DiscoverContent({ isDesktop }) {
 }
 
 function WishlistContent({ isDesktop }) {
+  const [downloaded, setDownloaded] = useState({});
+  const [toast, setToast] = useState(null);
+
   const items = [
     { a: "Innellea", t: "Vigilance (Extended)", p: "high", s: "dig-artist" },
     { a: "Adriatique", t: "Nude", p: "medium", s: "tracklist" },
     { a: "Recondite", t: "Phalanx", p: "medium", s: "tracklist" },
     { a: "Ame", t: "Rej (DJ Koze Remix)", p: "low", s: "dig-weekly" },
   ];
+
+  const markDownloaded = (idx) => {
+    setDownloaded((prev) => ({ ...prev, [idx]: true }));
+    setToast("Track moved to Intake queue \u2014 switch to Prep to process");
+    setTimeout(() => setToast(null), 3500);
+  };
+
   return (
-    <div
-      style={
-        isDesktop
-          ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }
-          : {}
-      }
-    >
-      {items.map((t, i) => (
+    <>
+      {toast && (
         <div
-          key={i}
           style={{
+            background: P.green + "18",
+            border: `1px solid ${P.green}30`,
+            borderRadius: 10,
+            padding: "10px 14px",
+            marginBottom: 12,
             display: "flex",
             alignItems: "center",
-            gap: 10,
-            padding: isDesktop ? "14px 18px" : "12px 14px",
-            background: P.bgCard,
-            borderRadius: 10,
-            border: `1px solid ${P.border}`,
-            marginBottom: isDesktop ? 0 : 6,
+            gap: 8,
           }}
         >
-          <div style={{ flex: 1 }}>
+          <CircleCheck size={14} color={P.green} />
+          <span style={{ fontSize: 12, fontFamily: F.b, color: P.cream }}>{toast}</span>
+        </div>
+      )}
+      <div
+        style={
+          isDesktop
+            ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }
+            : {}
+        }
+      >
+        {items.map((t, i) => {
+          const isDl = downloaded[i];
+          return (
             <div
+              key={i}
               style={{
-                fontSize: 13,
-                fontWeight: 600,
-                fontFamily: F.b,
-                color: P.cream,
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: isDesktop ? "14px 18px" : "12px 14px",
+                background: P.bgCard,
+                borderRadius: 10,
+                border: `1px solid ${isDl ? P.green + "25" : P.border}`,
+                marginBottom: isDesktop ? 0 : 6,
               }}
             >
-              {t.a} -- {t.t}
+              <div style={{ flex: 1 }}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    fontFamily: F.b,
+                    color: P.cream,
+                  }}
+                >
+                  {t.a} -- {t.t}
+                </div>
+                <div style={{ display: "flex", gap: 5, marginTop: 4 }}>
+                  {isDl ? (
+                    <Badge color={P.green}>downloaded</Badge>
+                  ) : (
+                    <Badge
+                      color={
+                        t.p === "high"
+                          ? P.terra
+                          : t.p === "medium"
+                            ? P.warn
+                            : P.text3
+                      }
+                    >
+                      {t.p}
+                    </Badge>
+                  )}
+                  <Badge color={P.text3}>{t.s}</Badge>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                {!isDl && (
+                  <button
+                    onClick={() => markDownloaded(i)}
+                    style={{
+                      background: P.green + "15",
+                      border: `1px solid ${P.green}25`,
+                      borderRadius: 6,
+                      padding: "5px 8px",
+                      color: P.green,
+                      fontSize: 10,
+                      fontFamily: F.m,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 3,
+                    }}
+                  >
+                    <CircleCheck size={10} />
+                    Got it
+                  </button>
+                )}
+                <button
+                  style={{
+                    background: P.azure + "18",
+                    border: `1px solid ${P.azure}30`,
+                    borderRadius: 6,
+                    padding: "5px 10px",
+                    color: P.azure,
+                    fontSize: 10,
+                    fontFamily: F.m,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 3,
+                  }}
+                >
+                  <Download size={10} />
+                  Find
+                </button>
+              </div>
             </div>
-            <div style={{ display: "flex", gap: 5, marginTop: 4 }}>
-              <Badge
-                color={
-                  t.p === "high"
-                    ? P.terra
-                    : t.p === "medium"
-                      ? P.warn
-                      : P.text3
-                }
-              >
-                {t.p}
-              </Badge>
-              <Badge color={P.text3}>{t.s}</Badge>
-            </div>
-          </div>
-          <button
-            style={{
-              background: P.azure + "18",
-              border: `1px solid ${P.azure}30`,
-              borderRadius: 6,
-              padding: "5px 10px",
-              color: P.azure,
-              fontSize: 10,
-              fontFamily: F.m,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 3,
-            }}
-          >
-            <Download size={10} />
-            Find
-          </button>
-        </div>
-      ))}
-    </div>
+          );
+        })}
+      </div>
+    </>
   );
 }
 

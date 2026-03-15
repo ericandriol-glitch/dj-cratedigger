@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
-  Headphones, Zap, Search, Disc3, Target, ChevronRight,
+  Headphones, Zap, Search, Disc3, Target, ChevronRight, Clock,
+  TrendingUp, TrendingDown,
 } from "lucide-react";
 import { P, F } from "./theme";
 import { Badge, EnergyBar, ThemeHeader, camelotColor } from "./components";
@@ -47,10 +48,11 @@ export default function PracticeScreen({ nav, isDesktop }) {
         color={P.purple}
         isDesktop={isDesktop}
       />
-      <div style={{ display: "flex", gap: 6, marginBottom: 18, ...(isDesktop ? { maxWidth: 400 } : {}) }}>
+      <div style={{ display: "flex", gap: 6, marginBottom: 18, ...(isDesktop ? { maxWidth: 600 } : {}), overflowX: "auto" }}>
         {[
           { id: "hard", l: "Hard transitions", I: Zap },
           { id: "free", l: "Pick any two", I: Search },
+          { id: "history", l: "History", I: Clock },
         ].map((m) => (
           <button
             key={m.id}
@@ -344,6 +346,177 @@ export default function PracticeScreen({ nav, isDesktop }) {
             >
               Search your tracks...
             </span>
+          </div>
+        </div>
+      )}
+
+      {mode === "history" && (
+        <div style={isDesktop ? { maxWidth: 800 } : {}}>
+          {/* Summary header */}
+          <div
+            style={{
+              display: isDesktop ? "flex" : "block",
+              gap: 12,
+              marginBottom: 18,
+            }}
+          >
+            <div
+              style={{
+                background: P.bgCard,
+                borderRadius: 14,
+                padding: isDesktop ? "20px" : "16px",
+                border: `1px solid ${P.purple}20`,
+                marginBottom: isDesktop ? 0 : 10,
+                flex: 1,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <Clock size={14} color={P.purple} />
+                <span style={{ fontSize: 11, fontFamily: F.m, color: P.purple, letterSpacing: 1 }}>
+                  PRACTICE HISTORY
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: 16 }}>
+                <div>
+                  <div style={{ fontSize: 28, fontWeight: 800, fontFamily: F.d, color: P.purple }}>12</div>
+                  <div style={{ fontSize: 10, fontFamily: F.m, color: P.text2 }}>sessions</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 28, fontWeight: 800, fontFamily: F.d, color: P.cream }}>28</div>
+                  <div style={{ fontSize: 10, fontFamily: F.m, color: P.text2 }}>transitions drilled</div>
+                </div>
+              </div>
+            </div>
+            <div
+              style={{
+                background: P.bgCard,
+                borderRadius: 14,
+                padding: isDesktop ? "20px" : "16px",
+                border: `1px solid ${P.border}`,
+                marginBottom: isDesktop ? 0 : 10,
+                flex: 1,
+              }}
+            >
+              <div style={{ fontSize: 10, fontFamily: F.m, color: P.text3, letterSpacing: 1, marginBottom: 10 }}>
+                THIS MONTH
+              </div>
+              <div style={{ display: "flex", gap: 14 }}>
+                {[
+                  { n: 8, l: "improved", color: P.green, I: TrendingUp },
+                  { n: 3, l: "new", color: P.azure, I: Disc3 },
+                  { n: 1, l: "regressed", color: P.terra, I: TrendingDown },
+                ].map((s, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <s.I size={12} color={s.color} />
+                    <div>
+                      <span style={{ fontSize: 16, fontWeight: 800, fontFamily: F.d, color: s.color }}>{s.n}</span>
+                      <span style={{ fontSize: 10, fontFamily: F.b, color: P.text2, marginLeft: 4 }}>{s.l}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Recent sessions */}
+          <div style={{ marginBottom: 18 }}>
+            <div style={{ fontSize: 10, fontFamily: F.m, color: P.text3, letterSpacing: 1, marginBottom: 8 }}>
+              RECENT SESSIONS
+            </div>
+            {[
+              { date: "Mar 14", crate: "Saturday crate", transitions: 5, confidence: "Medium" },
+              { date: "Mar 12", crate: "Saturday crate", transitions: 3, confidence: "High" },
+              { date: "Mar 10", crate: "Festival prep", transitions: 4, confidence: "Low" },
+            ].map((s, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: isDesktop ? "12px 16px" : "10px 12px",
+                  background: P.bgCard,
+                  borderRadius: 10,
+                  border: `1px solid ${P.border}`,
+                  marginBottom: 4,
+                }}
+              >
+                <span style={{ fontSize: 11, fontFamily: F.m, color: P.text3, width: 50, flexShrink: 0 }}>
+                  {s.date}
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, fontFamily: F.b, color: P.cream }}>
+                    {s.crate}
+                  </div>
+                  <div style={{ fontSize: 10, fontFamily: F.m, color: P.text2, marginTop: 1 }}>
+                    {s.transitions} transitions
+                  </div>
+                </div>
+                <Badge
+                  color={
+                    s.confidence === "High" ? P.green : s.confidence === "Medium" ? P.warn : P.terra
+                  }
+                >
+                  avg: {s.confidence}
+                </Badge>
+              </div>
+            ))}
+          </div>
+
+          {/* Most practiced */}
+          <div>
+            <div style={{ fontSize: 10, fontFamily: F.m, color: P.text3, letterSpacing: 1, marginBottom: 8 }}>
+              MOST PRACTICED
+            </div>
+            {[
+              { a: "Tale Of Us", b: "Stephan Bodzin", times: 5, from: "High", to: "High" },
+              { a: "Mind Against", b: "Dixon", times: 3, from: "Low", to: "Medium" },
+            ].map((p, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: isDesktop ? "12px 16px" : "10px 12px",
+                  background: P.bgCard,
+                  borderRadius: 10,
+                  border: `1px solid ${P.border}`,
+                  marginBottom: 4,
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      fontFamily: F.b,
+                      color: P.cream,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {p.a} {"\u2192"} {p.b}
+                  </div>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 3 }}>
+                    <span style={{ fontSize: 10, fontFamily: F.m, color: P.text2 }}>
+                      {p.times} times
+                    </span>
+                    <span style={{ fontSize: 10, fontFamily: F.m, color: P.text3 }}>
+                      confidence:
+                    </span>
+                    <Badge color={p.from === "High" ? P.green : p.from === "Medium" ? P.warn : P.terra}>
+                      {p.from}
+                    </Badge>
+                    <ChevronRight size={10} color={P.text3} />
+                    <Badge color={p.to === "High" ? P.green : p.to === "Medium" ? P.warn : P.terra}>
+                      {p.to}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

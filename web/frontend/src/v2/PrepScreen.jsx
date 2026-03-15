@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import {
   Wrench, Fingerprint, HardDrive, Activity, Radio, Hash,
   CircleCheck, CircleX, AlertTriangle, Tag, Clock,
-  AudioLines, SkipForward, ChevronRight,
+  AudioLines, SkipForward, ChevronRight, RefreshCw, FolderOpen,
+  FileText, Eye,
 } from "lucide-react";
 import { P, F } from "./theme";
 import { Badge, EnergyBar, Ring, ThemeHeader, camelotColor } from "./components";
@@ -64,6 +65,200 @@ export default function PrepScreen({ nav, isDesktop }) {
 
 /* Intake */
 function IntakeContent({ isDesktop }) {
+  const [phase, setPhase] = useState("review"); // "review" | "complete"
+
+  if (phase === "complete") {
+    return (
+      <div
+        style={{
+          background: P.bgCard,
+          borderRadius: 14,
+          padding: isDesktop ? "28px 32px" : "20px 18px",
+          border: `1px solid ${P.lime}25`,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 10,
+              background: P.lime + "18",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <CircleCheck size={20} color={P.lime} />
+          </div>
+          <div>
+            <div
+              style={{
+                fontSize: isDesktop ? 22 : 18,
+                fontWeight: 800,
+                fontFamily: F.d,
+                color: P.lime,
+              }}
+            >
+              INTAKE COMPLETE
+            </div>
+            <div style={{ fontSize: 11, fontFamily: F.b, color: P.text2, marginTop: 2 }}>
+              27 tracks processed
+            </div>
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: isDesktop ? "flex" : "block",
+            gap: 16,
+            marginBottom: 20,
+          }}
+        >
+          {/* Identification stats */}
+          <div
+            style={{
+              background: P.bgSurface,
+              borderRadius: 10,
+              padding: isDesktop ? "16px 18px" : "12px 14px",
+              marginBottom: isDesktop ? 0 : 10,
+              flex: 1,
+            }}
+          >
+            <div style={{ fontSize: 9, fontFamily: F.m, color: P.text3, letterSpacing: 1, marginBottom: 8 }}>
+              IDENTIFICATION
+            </div>
+            {[
+              { label: "23 identified", sub: "AcoustID: 18, metadata: 5", color: P.lime },
+              { label: "4 skipped", sub: null, color: P.text3 },
+            ].map((item, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                {i === 0 ? <CircleCheck size={12} color={item.color} /> : <SkipForward size={12} color={item.color} />}
+                <div>
+                  <span style={{ fontSize: 12, fontFamily: F.b, color: P.cream }}>{item.label}</span>
+                  {item.sub && (
+                    <span style={{ fontSize: 10, fontFamily: F.m, color: P.text2, marginLeft: 6 }}>
+                      ({item.sub})
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+            <div style={{ borderTop: `1px solid ${P.border}`, marginTop: 8, paddingTop: 8 }}>
+              {[
+                { label: "BPM detected", value: "25", color: P.lime },
+                { label: "Key detected", value: "23", color: P.lime },
+              ].map((s, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <span style={{ fontSize: 11, fontFamily: F.b, color: P.text2 }}>{s.label}</span>
+                  <span style={{ fontSize: 11, fontFamily: F.m, color: s.color, fontWeight: 700 }}>{s.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Destination folders */}
+          <div
+            style={{
+              background: P.bgSurface,
+              borderRadius: 10,
+              padding: isDesktop ? "16px 18px" : "12px 14px",
+              marginBottom: isDesktop ? 0 : 10,
+              flex: 1,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 8 }}>
+              <FolderOpen size={10} color={P.text3} />
+              <span style={{ fontSize: 9, fontFamily: F.m, color: P.text3, letterSpacing: 1 }}>
+                DESTINATION FOLDERS
+              </span>
+            </div>
+            {[
+              { folder: "melodic-techno/", count: 12, color: P.terra },
+              { folder: "deep-house/", count: 8, color: P.azure },
+              { folder: "afro-house/", count: 4, color: P.lime },
+            ].map((d, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <span style={{ fontSize: 12, fontFamily: F.m, color: P.cream }}>{d.folder}</span>
+                <Badge color={d.color}>{d.count} tracks</Badge>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Rekordbox XML */}
+        <div
+          style={{
+            background: P.lime + "08",
+            borderRadius: 10,
+            padding: isDesktop ? "14px 18px" : "12px 14px",
+            border: `1px solid ${P.lime}15`,
+            marginBottom: 18,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
+          <FileText size={16} color={P.lime} />
+          <div>
+            <div style={{ fontSize: 10, fontFamily: F.m, color: P.lime, letterSpacing: 1 }}>
+              REKORDBOX XML GENERATED
+            </div>
+            <div style={{ fontSize: 12, fontFamily: F.m, color: P.cream, marginTop: 2 }}>
+              ~/Music/DJ/intake-2026-03-15.xml
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 8, ...(isDesktop ? { maxWidth: 400 } : {}) }}>
+          <button
+            style={{
+              flex: 1,
+              background: P.lime + "18",
+              border: `1px solid ${P.lime}30`,
+              borderRadius: 10,
+              padding: "12px",
+              color: P.lime,
+              fontSize: 12,
+              fontFamily: F.d,
+              fontWeight: 600,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 4,
+            }}
+          >
+            <FolderOpen size={14} />
+            Open in Rekordbox
+          </button>
+          <button
+            onClick={() => setPhase("review")}
+            style={{
+              flex: 1,
+              background: P.bgCard,
+              border: `1px solid ${P.border}`,
+              borderRadius: 10,
+              padding: "12px",
+              color: P.text2,
+              fontSize: 12,
+              fontFamily: F.d,
+              fontWeight: 600,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 4,
+            }}
+          >
+            <ChevronRight size={14} style={{ transform: "rotate(180deg)" }} />
+            Back to Intake
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const t = {
     file: "SC_download_x7r9k2.mp3",
     artist: "Solomun",
@@ -394,6 +589,29 @@ function IntakeContent({ isDesktop }) {
           Approve
         </button>
       </div>
+      <button
+        onClick={() => setPhase("complete")}
+        style={{
+          width: isDesktop ? "auto" : "100%",
+          background: "none",
+          border: `1px solid ${P.lime}30`,
+          borderRadius: 10,
+          padding: "10px 20px",
+          marginTop: 10,
+          color: P.lime,
+          fontSize: 11,
+          fontFamily: F.d,
+          fontWeight: 600,
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 5,
+        }}
+      >
+        <Eye size={13} />
+        View Summary
+      </button>
     </>
   );
 }
@@ -606,6 +824,17 @@ function LibraryContent({ isDesktop }) {
 
 /* My Sound profile */
 function ProfileContent({ isDesktop }) {
+  const [syncState, setSyncState] = useState("idle"); // "idle" | "syncing" | "done"
+  const [lastSynced, setLastSynced] = useState("Never");
+
+  const handleSync = () => {
+    setSyncState("syncing");
+    setTimeout(() => {
+      setSyncState("done");
+      setLastSynced("Just now");
+    }, 1800);
+  };
+
   const genres = [
     { n: "Melodic Techno", p: 48, o: 42, c: P.terra },
     { n: "Deep House", p: 28, o: 31, c: P.azure },
@@ -616,6 +845,71 @@ function ProfileContent({ isDesktop }) {
 
   return (
     <>
+      {/* Rekordbox Sync card */}
+      <div
+        style={{
+          background: P.bgCard,
+          borderRadius: 14,
+          padding: isDesktop ? "18px 22px" : "14px 16px",
+          marginBottom: 16,
+          border: `1px solid ${syncState === "done" ? P.lime + "30" : P.border}`,
+          display: "flex",
+          alignItems: "center",
+          gap: 14,
+        }}
+      >
+        <div
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 10,
+            background: P.lime + "15",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          <RefreshCw
+            size={18}
+            color={P.lime}
+            style={syncState === "syncing" ? { animation: "spin 1s linear infinite" } : {}}
+          />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 11, fontFamily: F.m, color: P.lime, letterSpacing: 1 }}>
+            REKORDBOX SYNC
+          </div>
+          <div style={{ fontSize: 12, fontFamily: F.b, color: P.text2, marginTop: 2 }}>
+            {syncState === "syncing"
+              ? "Importing play history..."
+              : syncState === "done"
+                ? "Synced! 340 play records imported."
+                : `Last synced: ${lastSynced}`}
+          </div>
+        </div>
+        <button
+          onClick={handleSync}
+          disabled={syncState === "syncing"}
+          style={{
+            background: syncState === "done" ? P.lime + "18" : P.lime,
+            border: syncState === "done" ? `1px solid ${P.lime}30` : "none",
+            borderRadius: 8,
+            padding: "8px 16px",
+            color: syncState === "done" ? P.lime : P.bg,
+            fontSize: 11,
+            fontFamily: F.d,
+            fontWeight: 700,
+            cursor: syncState === "syncing" ? "default" : "pointer",
+            opacity: syncState === "syncing" ? 0.5 : 1,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {syncState === "syncing" ? "Syncing..." : syncState === "done" ? "Synced" : "Sync Now"}
+        </button>
+      </div>
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+
       {/* Desktop: summary + play-vs-own ring side by side */}
       <div
         style={
