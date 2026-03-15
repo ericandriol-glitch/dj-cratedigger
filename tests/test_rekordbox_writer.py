@@ -170,8 +170,8 @@ class TestWriteRekordboxXml:
         product = tree.find("PRODUCT")
         assert product is not None
         assert product.get("Name") == "rekordbox"
-        assert product.get("Version") == "7.0.0"
-        assert product.get("Company") == "AlphaTheta"
+        assert product.get("Version") == "7.0.1"
+        assert product.get("Company") == "Pioneer DJ"
 
     def test_collection_count(self, tmp_path: Path):
         out = tmp_path / "export.xml"

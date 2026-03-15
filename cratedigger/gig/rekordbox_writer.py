@@ -46,6 +46,13 @@ def _filepath_to_location(filepath: Path) -> str:
     return "file://localhost" + urllib.parse.quote(posix, safe="/:")
 
 
+def _normalize_bitrate(bitrate: int) -> int:
+    """Normalize bitrate to kbps. Mutagen returns bps (320000), Rekordbox expects kbps (320)."""
+    if bitrate > 9999:
+        return bitrate // 1000
+    return bitrate
+
+
 def _safe(value: object) -> str:
     """Convert value to string, treating None as empty string."""
     return "" if value is None else str(value)
@@ -74,7 +81,7 @@ def _track_to_xml_element(track: dict, track_id: int) -> ET.Element:
         "Year": _safe(track.get("year", "")),
         "AverageBpm": bpm_str,
         "DateAdded": str(track.get("date_added", date.today().isoformat())),
-        "BitRate": str(track.get("bitrate", 0) or 0),
+        "BitRate": str(_normalize_bitrate(track.get("bitrate", 0) or 0)),
         "SampleRate": str(track.get("sample_rate", 0) or 0),
         "Comments": _safe(track.get("comment", "")),
         "Rating": _safe(track.get("rating", "0")),
@@ -147,7 +154,7 @@ def write_rekordbox_xml(
         Path to the written XML file.
     """
     root = ET.Element("DJ_PLAYLISTS", Version="1.0.0")
-    ET.SubElement(root, "PRODUCT", Name="rekordbox", Version="7.0.0", Company="AlphaTheta")
+    ET.SubElement(root, "PRODUCT", Name="rekordbox", Version="7.0.1", Company="Pioneer DJ")
     collection = ET.SubElement(root, "COLLECTION", Entries=str(len(tracks)))
     track_ids: list[int] = []
     for i, track in enumerate(tracks, 1):
