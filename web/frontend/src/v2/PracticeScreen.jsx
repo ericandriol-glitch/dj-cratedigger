@@ -5,7 +5,7 @@ import {
 import { P, F } from "./theme";
 import { Badge, EnergyBar, ThemeHeader, camelotColor } from "./components";
 
-export default function PracticeScreen({ nav }) {
+export default function PracticeScreen({ nav, isDesktop }) {
   const [mode, setMode] = useState("hard");
 
   const mixes = [
@@ -35,16 +35,19 @@ export default function PracticeScreen({ nav }) {
   const dc = (d) =>
     d === "expert" ? P.terra : d === "hard" ? P.warn : d === "medium" ? P.azure : P.green;
 
+  const pad = isDesktop ? "32px 32px 48px" : "20px 18px 100px";
+
   return (
-    <div style={{ padding: "20px 18px 100px" }}>
+    <div style={{ padding: pad }}>
       <ThemeHeader
         nav={nav}
         icon={Headphones}
         label="Practice"
         sub="Know your tracks"
         color={P.purple}
+        isDesktop={isDesktop}
       />
-      <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
+      <div style={{ display: "flex", gap: 6, marginBottom: 18, ...(isDesktop ? { maxWidth: 400 } : {}) }}>
         {[
           { id: "hard", l: "Hard transitions", I: Zap },
           { id: "free", l: "Pick any two", I: Search },
@@ -87,193 +90,202 @@ export default function PracticeScreen({ nav }) {
           >
             Hardest transitions in your Saturday crate
           </div>
-          {mixes.map((m, i) => (
-            <div
-              key={i}
-              style={{
-                background: P.bgCard,
-                borderRadius: 14,
-                padding: "16px",
-                border: `1px solid ${P.border}`,
-                marginBottom: 10,
-              }}
-            >
+          {/* Desktop: 2-column grid of transition cards */}
+          <div
+            style={
+              isDesktop
+                ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }
+                : {}
+            }
+          >
+            {mixes.map((m, i) => (
               <div
+                key={i}
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  marginBottom: 12,
+                  background: P.bgCard,
+                  borderRadius: 14,
+                  padding: isDesktop ? "20px" : "16px",
+                  border: `1px solid ${P.border}`,
+                  marginBottom: isDesktop ? 0 : 10,
                 }}
               >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 600,
-                      fontFamily: F.b,
-                      color: P.cream,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {m.a}
-                  </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 8,
-                      marginTop: 2,
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: 10,
-                        fontFamily: F.m,
-                        color: P.text2,
-                      }}
-                    >
-                      {m.bA}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 10,
-                        fontFamily: F.m,
-                        color: camelotColor(m.kA),
-                      }}
-                    >
-                      {m.kA}
-                    </span>
-                    <EnergyBar energy={m.eA} w={24} />
-                  </div>
-                </div>
-                <ChevronRight size={14} color={P.text3} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 600,
-                      fontFamily: F.b,
-                      color: P.cream,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {m.b}
-                  </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 8,
-                      marginTop: 2,
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: 10,
-                        fontFamily: F.m,
-                        color: P.text2,
-                      }}
-                    >
-                      {m.bB}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 10,
-                        fontFamily: F.m,
-                        color: camelotColor(m.kB),
-                      }}
-                    >
-                      {m.kB}
-                    </span>
-                    <EnergyBar energy={m.eB} w={24} />
-                  </div>
-                </div>
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  gap: 8,
-                  alignItems: "center",
-                  marginBottom: 8,
-                }}
-              >
-                <Badge color={dc(m.diff)}>{m.diff}</Badge>
-                <span
+                <div
                   style={{
-                    fontSize: 10,
-                    fontFamily: F.m,
-                    color: P.text2,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    marginBottom: 12,
                   }}
                 >
-                  BPM {m.bA > m.bB ? "-" : "+"}
-                  {Math.abs(m.bA - m.bB)} -- Energy{" "}
-                  {m.eA > m.eB ? "drop" : "jump"}{" "}
-                  {Math.abs(m.eA - m.eB).toFixed(2)}
-                </span>
-              </div>
-              <div
-                style={{
-                  fontSize: 11,
-                  fontFamily: F.b,
-                  color: P.text2,
-                  lineHeight: 1.5,
-                  background: P.bgSurface,
-                  borderRadius: 8,
-                  padding: "10px 12px",
-                  display: "flex",
-                  gap: 6,
-                  alignItems: "flex-start",
-                }}
-              >
-                <Target
-                  size={12}
-                  color={P.purple}
-                  style={{ flexShrink: 0, marginTop: 2 }}
-                />
-                {m.tip}
-              </div>
-              <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-                {[
-                  ["Low", P.terra],
-                  ["Medium", P.warn],
-                  ["High", P.green],
-                ].map(([c, col], j) => (
-                  <button
-                    key={j}
-                    style={{
-                      flex: 1,
-                      background: P.bgHover,
-                      border: `1px solid ${P.border}`,
-                      borderRadius: 8,
-                      padding: "8px",
-                      color: P.cream,
-                      fontSize: 10,
-                      fontFamily: F.d,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 4,
-                    }}
-                  >
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div
                       style={{
-                        width: 6,
-                        height: 6,
-                        borderRadius: "50%",
-                        background: col,
+                        fontSize: 13,
+                        fontWeight: 600,
+                        fontFamily: F.b,
+                        color: P.cream,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
                       }}
-                    />
-                    {c}
-                  </button>
-                ))}
+                    >
+                      {m.a}
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 8,
+                        marginTop: 2,
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontFamily: F.m,
+                          color: P.text2,
+                        }}
+                      >
+                        {m.bA}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontFamily: F.m,
+                          color: camelotColor(m.kA),
+                        }}
+                      >
+                        {m.kA}
+                      </span>
+                      <EnergyBar energy={m.eA} w={24} />
+                    </div>
+                  </div>
+                  <ChevronRight size={14} color={P.text3} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        fontFamily: F.b,
+                        color: P.cream,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {m.b}
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 8,
+                        marginTop: 2,
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontFamily: F.m,
+                          color: P.text2,
+                        }}
+                      >
+                        {m.bB}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontFamily: F.m,
+                          color: camelotColor(m.kB),
+                        }}
+                      >
+                        {m.kB}
+                      </span>
+                      <EnergyBar energy={m.eB} w={24} />
+                    </div>
+                  </div>
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    alignItems: "center",
+                    marginBottom: 8,
+                  }}
+                >
+                  <Badge color={dc(m.diff)}>{m.diff}</Badge>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontFamily: F.m,
+                      color: P.text2,
+                    }}
+                  >
+                    BPM {m.bA > m.bB ? "-" : "+"}
+                    {Math.abs(m.bA - m.bB)} -- Energy{" "}
+                    {m.eA > m.eB ? "drop" : "jump"}{" "}
+                    {Math.abs(m.eA - m.eB).toFixed(2)}
+                  </span>
+                </div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontFamily: F.b,
+                    color: P.text2,
+                    lineHeight: 1.5,
+                    background: P.bgSurface,
+                    borderRadius: 8,
+                    padding: isDesktop ? "12px 14px" : "10px 12px",
+                    display: "flex",
+                    gap: 6,
+                    alignItems: "flex-start",
+                  }}
+                >
+                  <Target
+                    size={12}
+                    color={P.purple}
+                    style={{ flexShrink: 0, marginTop: 2 }}
+                  />
+                  {m.tip}
+                </div>
+                <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+                  {[
+                    ["Low", P.terra],
+                    ["Medium", P.warn],
+                    ["High", P.green],
+                  ].map(([c, col], j) => (
+                    <button
+                      key={j}
+                      style={{
+                        flex: 1,
+                        background: P.bgHover,
+                        border: `1px solid ${P.border}`,
+                        borderRadius: 8,
+                        padding: "8px",
+                        color: P.cream,
+                        fontSize: 10,
+                        fontFamily: F.d,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 4,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: "50%",
+                          background: col,
+                        }}
+                      />
+                      {c}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </>
       )}
 
@@ -282,9 +294,10 @@ export default function PracticeScreen({ nav }) {
           style={{
             background: P.bgCard,
             borderRadius: 14,
-            padding: "20px",
+            padding: isDesktop ? "32px" : "20px",
             border: `1px solid ${P.border}`,
             textAlign: "center",
+            ...(isDesktop ? { maxWidth: 600 } : {}),
           }}
         >
           <Disc3
@@ -317,7 +330,7 @@ export default function PracticeScreen({ nav }) {
             style={{
               background: P.bgSurface,
               borderRadius: 10,
-              padding: "12px 16px",
+              padding: isDesktop ? "14px 20px" : "12px 16px",
               border: `1px solid ${P.border}`,
               display: "flex",
               alignItems: "center",

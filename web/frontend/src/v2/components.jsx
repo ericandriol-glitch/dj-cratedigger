@@ -127,30 +127,33 @@ export function Ring({ pct, size = 64, stroke = 5, color = P.lime }) {
   );
 }
 
-export function ThemeHeader({ nav, icon: Icon, label, sub, color }) {
+export function ThemeHeader({ nav, icon: Icon, label, sub, color, isDesktop, noMargin }) {
   return (
     <div
       style={{
         display: "flex",
         alignItems: "center",
         gap: 10,
-        marginBottom: 18,
+        marginBottom: noMargin ? 0 : 18,
       }}
     >
-      <button
-        onClick={() => nav("home")}
-        style={{
-          background: "none",
-          border: "none",
-          color: P.text2,
-          fontSize: 16,
-          cursor: "pointer",
-          padding: 4,
-          display: "flex",
-        }}
-      >
-        <ChevronRight size={18} style={{ transform: "rotate(180deg)" }} />
-      </button>
+      {/* Back button: only on mobile */}
+      {!isDesktop && (
+        <button
+          onClick={() => nav("home")}
+          style={{
+            background: "none",
+            border: "none",
+            color: P.text2,
+            fontSize: 16,
+            cursor: "pointer",
+            padding: 4,
+            display: "flex",
+          }}
+        >
+          <ChevronRight size={18} style={{ transform: "rotate(180deg)" }} />
+        </button>
+      )}
       <div
         style={{
           width: 32,
@@ -167,7 +170,7 @@ export function ThemeHeader({ nav, icon: Icon, label, sub, color }) {
       <div>
         <h2
           style={{
-            fontSize: 20,
+            fontSize: isDesktop ? 24 : 20,
             fontWeight: 800,
             fontFamily: F.d,
             color: P.cream,

@@ -6,7 +6,7 @@ import {
 import { P, F } from "./theme";
 import { fetchStats } from "./api";
 
-export default function HomePage({ nav }) {
+export default function HomePage({ nav, isDesktop }) {
   const [stats, setStats] = useState(null);
   const [error, setError] = useState(false);
 
@@ -84,51 +84,57 @@ export default function HomePage({ nav }) {
       ? "Library looking healthy. Time to dig for new music."
       : "Connecting to CrateDigger...";
 
+  const pad = isDesktop ? "32px 32px 48px" : "20px 18px 100px";
+  const tilePad = isDesktop ? "22px 20px" : "18px 16px";
+
   return (
-    <div style={{ padding: "20px 18px 100px" }}>
+    <div style={{ padding: pad }}>
       {/* Header */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          marginBottom: 24,
+          marginBottom: isDesktop ? 32 : 24,
         }}
       >
         <div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              marginBottom: 4,
-            }}
-          >
-            {[P.azure, P.lime, P.purple, P.terra].map((c, i) => (
-              <div
-                key={i}
-                style={{
-                  width: 6,
-                  height: 6,
-                  background: c,
-                  borderRadius: 1.5,
-                }}
-              />
-            ))}
-            <span
+          {/* Branding dots — only on mobile (desktop has sidebar branding) */}
+          {!isDesktop && (
+            <div
               style={{
-                fontSize: 10,
-                fontFamily: F.m,
-                color: P.text3,
-                letterSpacing: 2,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                marginBottom: 4,
               }}
             >
-              CRATEDIGGER
-            </span>
-          </div>
+              {[P.azure, P.lime, P.purple, P.terra].map((c, i) => (
+                <div
+                  key={i}
+                  style={{
+                    width: 6,
+                    height: 6,
+                    background: c,
+                    borderRadius: 1.5,
+                  }}
+                />
+              ))}
+              <span
+                style={{
+                  fontSize: 10,
+                  fontFamily: F.m,
+                  color: P.text3,
+                  letterSpacing: 2,
+                }}
+              >
+                CRATEDIGGER
+              </span>
+            </div>
+          )}
           <h1
             style={{
-              fontSize: 24,
+              fontSize: isDesktop ? 28 : 24,
               fontWeight: 800,
               fontFamily: F.d,
               color: P.cream,
@@ -153,13 +159,13 @@ export default function HomePage({ nav }) {
         </div>
       </div>
 
-      {/* 2x2 Tiles */}
+      {/* Tiles grid — 4-column on desktop, 2x2 on mobile */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 12,
-          marginBottom: 20,
+          gridTemplateColumns: isDesktop ? "1fr 1fr 1fr 1fr" : "1fr 1fr",
+          gap: isDesktop ? 16 : 12,
+          marginBottom: isDesktop ? 24 : 20,
         }}
       >
         {tiles.map((t) => {
@@ -171,7 +177,7 @@ export default function HomePage({ nav }) {
               style={{
                 background: P.bgCard,
                 borderRadius: 16,
-                padding: "18px 16px",
+                padding: tilePad,
                 cursor: "pointer",
                 border: `1px solid ${P.border}`,
                 position: "relative",
@@ -208,13 +214,13 @@ export default function HomePage({ nav }) {
                   display: "flex",
                   alignItems: "center",
                   gap: 8,
-                  marginBottom: 12,
+                  marginBottom: isDesktop ? 16 : 12,
                 }}
               >
                 <div
                   style={{
-                    width: 28,
-                    height: 28,
+                    width: isDesktop ? 32 : 28,
+                    height: isDesktop ? 32 : 28,
                     borderRadius: 7,
                     background: t.color + "15",
                     display: "flex",
@@ -222,11 +228,11 @@ export default function HomePage({ nav }) {
                     justifyContent: "center",
                   }}
                 >
-                  <I size={14} color={t.color} />
+                  <I size={isDesktop ? 16 : 14} color={t.color} />
                 </div>
                 <span
                   style={{
-                    fontSize: 16,
+                    fontSize: isDesktop ? 18 : 16,
                     fontWeight: 700,
                     fontFamily: F.d,
                     color: P.cream,
@@ -237,7 +243,7 @@ export default function HomePage({ nav }) {
               </div>
               <div
                 style={{
-                  fontSize: 28,
+                  fontSize: isDesktop ? 32 : 28,
                   fontWeight: 800,
                   fontFamily: F.d,
                   color: t.color,
@@ -262,7 +268,7 @@ export default function HomePage({ nav }) {
                   fontSize: 11,
                   fontFamily: F.b,
                   color: P.text3,
-                  marginTop: 10,
+                  marginTop: isDesktop ? 14 : 10,
                   lineHeight: 1.4,
                 }}
               >
@@ -273,12 +279,12 @@ export default function HomePage({ nav }) {
         })}
       </div>
 
-      {/* Contextual nudge */}
+      {/* Contextual nudge — full width */}
       <div
         style={{
           background: P.bgEl,
           borderRadius: 14,
-          padding: "16px 18px",
+          padding: isDesktop ? "20px 24px" : "16px 18px",
           border: `1px solid ${P.warn}18`,
         }}
       >
