@@ -13,6 +13,7 @@ def cli():
 from .analysis import analyze, enrich, enrich_essentia, scan_essentia  # noqa: E402, F401
 from .dig import dig, dig_artist, dig_label, dig_weekly  # noqa: E402, F401
 from .gig import cues, gig  # noqa: E402, F401
+from .gig_crate import gig_crate  # noqa: E402, F401
 from .scan import fix_all, fix_dupes, fix_filenames, fix_tags, scan  # noqa: E402, F401
 from .streaming import dig_sleeping, spotify, youtube  # noqa: E402, F401
 from .play import play  # noqa: E402, F401
