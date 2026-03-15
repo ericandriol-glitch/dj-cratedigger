@@ -18,8 +18,12 @@ from .scan import fix_all, fix_dupes, fix_filenames, fix_tags, scan  # noqa: E40
 from .streaming import dig_sleeping, spotify, youtube  # noqa: E402, F401
 from .play import play  # noqa: E402, F401
 from .tools import identify, pipeline, profile, report, watch  # noqa: E402, F401
+from .dig_session import dig_session  # noqa: E402, F401
 from .intake import intake  # noqa: E402, F401
 from .preflight_cmd import preflight  # noqa: E402, F401
+from .wishlist_cmd import wishlist  # noqa: E402, F401
+from .dig_artist_deep import dig_artist_deep  # noqa: E402, F401
+from .profile_folder_cmd import profile_folder_cmd  # noqa: E402, F401
 
 
 def main():
