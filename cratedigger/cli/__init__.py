@@ -24,6 +24,11 @@ from .preflight_cmd import preflight  # noqa: E402, F401
 from .wishlist_cmd import wishlist  # noqa: E402, F401
 from .dig_artist_deep import dig_artist_deep  # noqa: E402, F401
 from .profile_folder_cmd import profile_folder_cmd  # noqa: E402, F401
+from .gig_practice import gig_practice  # noqa: E402, F401
+from .stale_cmd import stale  # noqa: E402, F401
+from .profile_enhanced import profile_build, profile_show_enhanced  # noqa: E402, F401
+from .gig_export import gig_export  # noqa: E402, F401
+from .audit_cmd import audit  # noqa: E402, F401
 
 
 def main():
