@@ -1,0 +1,339 @@
+import { useState } from "react";
+import {
+  Headphones, Zap, Search, Disc3, Target, ChevronRight,
+} from "lucide-react";
+import { P, F } from "./theme";
+import { Badge, EnergyBar, ThemeHeader, camelotColor } from "./components";
+
+export default function PracticeScreen({ nav }) {
+  const [mode, setMode] = useState("hard");
+
+  const mixes = [
+    {
+      a: "Tale Of Us - Astral",
+      b: "Stephan Bodzin - Zulu",
+      bA: 126, bB: 124, kA: "8A", kB: "5A",
+      eA: 0.92, eB: 0.74, diff: "hard",
+      tip: "Big energy drop. Use a long breakdown to transition.",
+    },
+    {
+      a: "Mind Against - Atlant",
+      b: "Dixon - Transmoderna",
+      bA: 128, bB: 122, kA: "11B", kB: "2A",
+      eA: 0.88, eB: 0.62, diff: "expert",
+      tip: "6 BPM gap + key clash. Loop down or use an acapella bridge.",
+    },
+    {
+      a: "Solomun - After Rain",
+      b: "Tale Of Us - Astral",
+      bA: 118, bB: 126, kA: "8A", kB: "8A",
+      eA: 0.35, eB: 0.92, diff: "hard",
+      tip: "Same key but massive energy jump. Build over 32 bars.",
+    },
+  ];
+
+  const dc = (d) =>
+    d === "expert" ? P.terra : d === "hard" ? P.warn : d === "medium" ? P.azure : P.green;
+
+  return (
+    <div style={{ padding: "20px 18px 100px" }}>
+      <ThemeHeader
+        nav={nav}
+        icon={Headphones}
+        label="Practice"
+        sub="Know your tracks"
+        color={P.purple}
+      />
+      <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
+        {[
+          { id: "hard", l: "Hard transitions", I: Zap },
+          { id: "free", l: "Pick any two", I: Search },
+        ].map((m) => (
+          <button
+            key={m.id}
+            onClick={() => setMode(m.id)}
+            style={{
+              flex: 1,
+              background: mode === m.id ? P.purple + "18" : "transparent",
+              border: `1px solid ${mode === m.id ? P.purple + "40" : P.border}`,
+              borderRadius: 10,
+              padding: "10px",
+              color: mode === m.id ? P.purple : P.text3,
+              fontSize: 12,
+              fontFamily: F.d,
+              fontWeight: 600,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 5,
+            }}
+          >
+            <m.I size={13} />
+            {m.l}
+          </button>
+        ))}
+      </div>
+
+      {mode === "hard" && (
+        <>
+          <div
+            style={{
+              fontSize: 11,
+              fontFamily: F.b,
+              color: P.text2,
+              marginBottom: 14,
+            }}
+          >
+            Hardest transitions in your Saturday crate
+          </div>
+          {mixes.map((m, i) => (
+            <div
+              key={i}
+              style={{
+                background: P.bgCard,
+                borderRadius: 14,
+                padding: "16px",
+                border: `1px solid ${P.border}`,
+                marginBottom: 10,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  marginBottom: 12,
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      fontFamily: F.b,
+                      color: P.cream,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {m.a}
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      marginTop: 2,
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontFamily: F.m,
+                        color: P.text2,
+                      }}
+                    >
+                      {m.bA}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontFamily: F.m,
+                        color: camelotColor(m.kA),
+                      }}
+                    >
+                      {m.kA}
+                    </span>
+                    <EnergyBar energy={m.eA} w={24} />
+                  </div>
+                </div>
+                <ChevronRight size={14} color={P.text3} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      fontFamily: F.b,
+                      color: P.cream,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {m.b}
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      marginTop: 2,
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontFamily: F.m,
+                        color: P.text2,
+                      }}
+                    >
+                      {m.bB}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontFamily: F.m,
+                        color: camelotColor(m.kB),
+                      }}
+                    >
+                      {m.kB}
+                    </span>
+                    <EnergyBar energy={m.eB} w={24} />
+                  </div>
+                </div>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  alignItems: "center",
+                  marginBottom: 8,
+                }}
+              >
+                <Badge color={dc(m.diff)}>{m.diff}</Badge>
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontFamily: F.m,
+                    color: P.text2,
+                  }}
+                >
+                  BPM {m.bA > m.bB ? "-" : "+"}
+                  {Math.abs(m.bA - m.bB)} -- Energy{" "}
+                  {m.eA > m.eB ? "drop" : "jump"}{" "}
+                  {Math.abs(m.eA - m.eB).toFixed(2)}
+                </span>
+              </div>
+              <div
+                style={{
+                  fontSize: 11,
+                  fontFamily: F.b,
+                  color: P.text2,
+                  lineHeight: 1.5,
+                  background: P.bgSurface,
+                  borderRadius: 8,
+                  padding: "10px 12px",
+                  display: "flex",
+                  gap: 6,
+                  alignItems: "flex-start",
+                }}
+              >
+                <Target
+                  size={12}
+                  color={P.purple}
+                  style={{ flexShrink: 0, marginTop: 2 }}
+                />
+                {m.tip}
+              </div>
+              <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+                {[
+                  ["Low", P.terra],
+                  ["Medium", P.warn],
+                  ["High", P.green],
+                ].map(([c, col], j) => (
+                  <button
+                    key={j}
+                    style={{
+                      flex: 1,
+                      background: P.bgHover,
+                      border: `1px solid ${P.border}`,
+                      borderRadius: 8,
+                      padding: "8px",
+                      color: P.cream,
+                      fontSize: 10,
+                      fontFamily: F.d,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 4,
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: "50%",
+                        background: col,
+                      }}
+                    />
+                    {c}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+
+      {mode === "free" && (
+        <div
+          style={{
+            background: P.bgCard,
+            borderRadius: 14,
+            padding: "20px",
+            border: `1px solid ${P.border}`,
+            textAlign: "center",
+          }}
+        >
+          <Disc3
+            size={28}
+            color={P.purple}
+            style={{ margin: "0 auto 12px" }}
+          />
+          <div
+            style={{
+              fontSize: 14,
+              fontFamily: F.d,
+              fontWeight: 600,
+              color: P.cream,
+              marginBottom: 8,
+            }}
+          >
+            Pick two tracks from your library
+          </div>
+          <div
+            style={{
+              fontSize: 12,
+              fontFamily: F.b,
+              color: P.text2,
+              marginBottom: 16,
+            }}
+          >
+            Search by name, BPM, or key to explore any transition
+          </div>
+          <div
+            style={{
+              background: P.bgSurface,
+              borderRadius: 10,
+              padding: "12px 16px",
+              border: `1px solid ${P.border}`,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              textAlign: "left",
+            }}
+          >
+            <Search size={14} color={P.text3} />
+            <span
+              style={{ fontSize: 13, fontFamily: F.b, color: P.text3 }}
+            >
+              Search your tracks...
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
