@@ -56,7 +56,7 @@ def gig_preflight(playlist_name: str, rekordbox: str) -> None:
 def gig_export(playlist_name: str, rekordbox: str, output: str, include_cues: bool) -> None:
     """Export a playlist as Rekordbox-compatible XML."""
     from ..gig.rekordbox_parser import parse_rekordbox_xml
-    from ..gig.rekordbox_writer import ExportCuePoint, ExportTrack, write_rekordbox_xml
+    from ..gig.rekordbox_writer import ExportCuePoint, write_rekordbox_xml
 
     console = Console()
     xml_path = Path(rekordbox)
@@ -72,22 +72,24 @@ def gig_export(playlist_name: str, rekordbox: str, output: str, include_cues: bo
         return
 
     tracks = library.get_playlist_tracks(playlist_name)
-    export_tracks = []
+    export_tracks: list[dict] = []
     for t in tracks:
-        cues = []
+        cues: list[ExportCuePoint] = []
         if include_cues:
             for cue in t.hot_cues:
                 cues.append(ExportCuePoint(
                     name=cue.name, position_seconds=cue.start, num=cue.num,
                     red=cue.red, green=cue.green, blue=cue.blue,
                 ))
-        export_tracks.append(ExportTrack(
-            location=t.location, name=t.name, artist=t.artist,
-            bpm=t.bpm, key=t.key, cue_points=cues,
-        ))
+        export_tracks.append({
+            "filepath": Path(t.location), "title": t.name, "artist": t.artist,
+            "bpm": t.bpm, "key_camelot": t.key or "", "duration_seconds": t.total_time,
+            "cue_points": cues, "album": "", "genre": "", "year": "",
+            "bitrate": 0, "sample_rate": 0,
+        })
 
     out_path = Path(output)
-    write_rekordbox_xml(export_tracks, out_path, playlist_name=playlist_name)
+    write_rekordbox_xml(export_tracks, playlist_name, out_path)
     console.print(f"\n  [green]Exported {len(export_tracks)} tracks to {out_path}[/green]\n")
 
 
